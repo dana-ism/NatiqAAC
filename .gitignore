@@ -20,9 +20,16 @@ frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
 
 # Node.js / NestJS generated files
-backend/node_modules/
+node_modules/
 backend/dist/
 backend/coverage/
+*.tsbuildinfo
+
+# Prisma-generated assistant skills
+backend/.agents/
+backend/.claude/
+backend/.cursor/
+backend/.devin/
 
 # Python generated files
 __pycache__/
