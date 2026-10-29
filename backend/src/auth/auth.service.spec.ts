@@ -1,8 +1,14 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { hash, compare } from 'bcrypt';
+import { Prisma } from '../generated/prisma/client';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -79,14 +85,50 @@ describe('AuthService', () => {
       expect(result.user).not.toHaveProperty('passwordHash');
     });
 
+    it('should reject a password exceeding 72 bytes', async () => {
+      const longPassword = 'a'.repeat(73);
+
+      await expect(
+        service.register({
+          ...registerDto,
+          password: longPassword,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(hash).not.toHaveBeenCalled();
+      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+    });
+
     it('should reject registration when the email already exists', async () => {
-      prismaMock.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+      });
 
       await expect(service.register(registerDto)).rejects.toThrow(
         ConflictException,
       );
 
       expect(prismaMock.user.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject registration when Prisma reports a unique constraint conflict', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      (hash as jest.Mock).mockResolvedValue('hashed-password');
+
+      prismaMock.user.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError(
+          'Unique constraint failed',
+          {
+            code: 'P2002',
+            clientVersion: '7.10.1',
+            meta: { target: ['email'] },
+          },
+        ),
+      );
+
+      await expect(service.register(registerDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -113,6 +155,20 @@ describe('AuthService', () => {
       );
 
       expect(compare).not.toHaveBeenCalled();
+    });
+
+    it('should reject a password exceeding 72 bytes', async () => {
+      const longPassword = 'a'.repeat(73);
+
+      await expect(
+        service.login({
+          ...loginDto,
+          password: longPassword,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(compare).not.toHaveBeenCalled();
+      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
     });
 
     it('should reject login when the password is incorrect', async () => {
