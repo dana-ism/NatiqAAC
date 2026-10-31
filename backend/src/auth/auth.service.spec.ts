@@ -7,6 +7,7 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { RedisToken } from '@nestjs-redis/client';
 import { hash, compare } from 'bcrypt';
 import { Prisma } from '../generated/prisma/client';
 import { AuthService } from './auth.service';
@@ -31,6 +32,12 @@ describe('AuthService', () => {
     signAsync: jest.fn(),
   };
 
+  const redisMock = {
+    ttl: jest.fn().mockResolvedValue(-2),
+    eval: jest.fn().mockResolvedValue(0),
+    del: jest.fn().mockResolvedValue(3),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -39,6 +46,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: JwtService, useValue: jwtMock },
+        { provide: RedisToken(), useValue: redisMock },
       ],
     }).compile();
 
@@ -155,6 +163,7 @@ describe('AuthService', () => {
       );
 
       expect(compare).not.toHaveBeenCalled();
+      expect(redisMock.eval).toHaveBeenCalled();
     });
 
     it('should reject a password exceeding 72 bytes', async () => {
@@ -180,6 +189,7 @@ describe('AuthService', () => {
       );
 
       expect(jwtMock.signAsync).not.toHaveBeenCalled();
+      expect(redisMock.eval).toHaveBeenCalled();
     });
 
     it('should reject login for an inactive account', async () => {
@@ -194,6 +204,7 @@ describe('AuthService', () => {
       );
 
       expect(jwtMock.signAsync).not.toHaveBeenCalled();
+      expect(redisMock.del).not.toHaveBeenCalled();
     });
 
     it('should return an access token after successful login', async () => {
@@ -208,6 +219,7 @@ describe('AuthService', () => {
         email: activeUser.email,
         role: activeUser.role,
       });
+      expect(redisMock.del).toHaveBeenCalled();
       expect(result.access_token).toBe('test-access-token');
       expect(result.user).not.toHaveProperty('passwordHash');
     });
