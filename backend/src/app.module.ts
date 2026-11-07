@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { RedisModule } from '@nestjs-redis/client';
+import { ConfigModule } from '@nestjs/config';
+import { AuthRedisModule } from './auth/auth-redis.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -11,16 +11,9 @@ import { PrismaModule } from './prisma/prisma.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
     }),
-    RedisModule.forRootAsync({
-      isGlobal: true,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        options: {
-          url: configService.getOrThrow<string>('REDIS_URL'),
-        },
-      }),
-    }),
+    AuthRedisModule,
     PrismaModule,
     AuthModule,
   ],

@@ -1,0 +1,25 @@
+name: natiqaac-auth-tests
+services:
+  postgres:
+    image: postgres:17
+    container_name: natiqaac-auth-test-postgres
+    labels:
+      com.natiqaac.purpose: isolated-auth-tests
+    environment:
+      POSTGRES_DB: natiqaac_auth_test
+      POSTGRES_USER: natiqaac_test
+      POSTGRES_PASSWORD: ${NATIQ_TEST_POSTGRES_PASSWORD:?Set a synthetic test-only password}
+    ports:
+      - '127.0.0.1:55432:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    container_name: natiqaac-auth-test-redis
+    labels:
+      com.natiqaac.purpose: isolated-auth-tests
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '127.0.0.1:56379:6379'
+    tmpfs:
+      - /data

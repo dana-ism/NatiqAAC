@@ -1,10 +1,10 @@
-
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { RedisToken } from '@nestjs-redis/client';
-import { RedisThrottlerStorage } from '@nestjs-redis/throttler-storage';
+import { AuthRateLimitStorage } from './auth-rate-limit.storage';
+import { LoginProtectionService } from './login-protection.service';
 import { ThrottlerModule } from '@nestjs/throttler';
 import type { RedisClientType } from 'redis';
 
@@ -23,14 +23,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: 900 },
+        signOptions: { expiresIn: 900, algorithm: 'HS256' },
       }),
     }),
 
     ThrottlerModule.forRootAsync({
       inject: [RedisToken()],
       useFactory: (redisClient: RedisClientType) => ({
-        storage: new RedisThrottlerStorage(redisClient),
+        storage: new AuthRateLimitStorage(redisClient),
         throttlers: [
           {
             name: 'default',
@@ -41,7 +41,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, LoginProtectionService],
   controllers: [AuthController],
 })
 export class AuthModule {}

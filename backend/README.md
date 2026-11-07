@@ -122,3 +122,7 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## NatiqAAC Authentication
+
+See [Authentication API, security policy and isolated testing](../docs/authentication.md). Use `.env.example` for runtime variable names and `.env.test.example` for isolated local test placeholders. Integration/E2E tests must never use the existing development PostgreSQL or Redis services. Successful `POST /auth/login` returns HTTP 200.

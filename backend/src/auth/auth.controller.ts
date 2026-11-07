@@ -1,11 +1,13 @@
-
+import { AccountLockFilter } from './account-lock.filter';
 import {
   Body,
   Controller,
+  HttpCode,
   Get,
   Post,
   Req,
   UseGuards,
+  UseFilters,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
@@ -24,15 +26,19 @@ type AuthenticatedRequest = Request & {
 };
 
 @Controller('auth')
+@UseFilters(AccountLockFilter)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Post('login')
+  @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   login(@Body() loginDto: LoginDto) {

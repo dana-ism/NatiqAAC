@@ -1,227 +1,203 @@
-
-import { Test, TestingModule } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  ServiceUnavailableException,
   UnauthorizedException,
+  HttpException,
 } from '@nestjs/common';
-import { RedisToken } from '@nestjs-redis/client';
+import { JwtService } from '@nestjs/jwt';
 import { hash, compare } from 'bcrypt';
 import { Prisma } from '../generated/prisma/client';
-import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoginProtectionService } from './login-protection.service';
+import { AuthService } from './auth.service';
 
-jest.mock('bcrypt', () => ({
-  hash: jest.fn(),
-  compare: jest.fn(),
-}));
+jest.mock('bcrypt', () => ({ hash: jest.fn(), compare: jest.fn() }));
+const dto = {
+  fullName: ' Test Parent ',
+  email: ' Parent@Example.com ',
+  password: 'TestPass123!',
+};
+const user = {
+  id: '6fbbe1de-542e-409e-bbec-088c6c084416',
+  fullName: 'Test Parent',
+  email: 'Parent@Example.com',
+  passwordHash: 'synthetic-hash',
+  role: 'PARENT',
+  status: 'ACTIVE',
+};
 
 describe('AuthService', () => {
   let service: AuthService;
-
-  const prismaMock = {
-    user: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-    },
+  let prisma: {
+    user: { findFirst: jest.Mock; findMany: jest.Mock; create: jest.Mock };
   };
-
-  const jwtMock = {
-    signAsync: jest.fn(),
+  let jwt: { signAsync: jest.Mock };
+  let protection: {
+    check: jest.Mock;
+    recordFailure: jest.Mock;
+    finalizeSuccess: jest.Mock;
   };
-
-  const redisMock = {
-    ttl: jest.fn().mockResolvedValue(-2),
-    eval: jest.fn().mockResolvedValue(0),
-    del: jest.fn().mockResolvedValue(3),
-  };
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        { provide: PrismaService, useValue: prismaMock },
-        { provide: JwtService, useValue: jwtMock },
-        { provide: RedisToken(), useValue: redisMock },
-      ],
-    }).compile();
-
-    service = module.get<AuthService>(AuthService);
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('register', () => {
-    const registerDto = {
-      fullName: 'Test Parent',
-      email: 'parent@example.com',
-      password: 'TestPass123!',
+  beforeEach(() => {
+    jest.resetAllMocks();
+    prisma = {
+      user: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([user]),
+        create: jest
+          .fn()
+          .mockResolvedValue({ ...user, passwordHash: undefined }),
+      },
     };
-
-    it('should register a parent and not return the password hash', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
-      (hash as jest.Mock).mockResolvedValue('hashed-password');
-
-      prismaMock.user.create.mockResolvedValue({
-        id: 'user-1',
-        fullName: registerDto.fullName,
-        email: registerDto.email,
+    jwt = { signAsync: jest.fn().mockResolvedValue('synthetic-access-token') };
+    protection = {
+      check: jest.fn().mockResolvedValue(undefined),
+      recordFailure: jest.fn().mockResolvedValue(undefined),
+      finalizeSuccess: jest.fn().mockResolvedValue(undefined),
+    };
+    (hash as jest.Mock).mockResolvedValue('synthetic-hash');
+    (compare as jest.Mock).mockResolvedValue(true);
+    service = new AuthService(
+      prisma as unknown as PrismaService,
+      jwt as unknown as JwtService,
+      protection as unknown as LoginProtectionService,
+    );
+  });
+  it('registers a normalized ordinary parent with explicit safe projection', async () => {
+    await service.register(dto);
+    expect(hash).toHaveBeenCalledWith(dto.password, 12);
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { email: { equals: 'parent@example.com', mode: 'insensitive' } },
+      select: { id: true },
+    });
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        fullName: 'Test Parent',
+        email: 'parent@example.com',
+        passwordHash: 'synthetic-hash',
         role: 'PARENT',
         status: 'ACTIVE',
-        createdAt: new Date(),
-      });
-
-      const result = await service.register(registerDto);
-
-      expect(hash).toHaveBeenCalledWith(registerDto.password, 12);
-      expect(prismaMock.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            email: registerDto.email,
-            passwordHash: 'hashed-password',
-            role: 'PARENT',
-            status: 'ACTIVE',
-          }),
-        }),
-      );
-      expect(result.user).not.toHaveProperty('passwordHash');
-    });
-
-    it('should reject a password exceeding 72 bytes', async () => {
-      const longPassword = 'a'.repeat(73);
-
-      await expect(
-        service.register({
-          ...registerDto,
-          password: longPassword,
-        }),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(hash).not.toHaveBeenCalled();
-      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
-    });
-
-    it('should reject registration when the email already exists', async () => {
-      prismaMock.user.findUnique.mockResolvedValue({
-        id: 'existing-user',
-      });
-
-      await expect(service.register(registerDto)).rejects.toThrow(
-        ConflictException,
-      );
-
-      expect(prismaMock.user.create).not.toHaveBeenCalled();
-    });
-
-    it('should reject registration when Prisma reports a unique constraint conflict', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
-      (hash as jest.Mock).mockResolvedValue('hashed-password');
-
-      prismaMock.user.create.mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError(
-          'Unique constraint failed',
-          {
-            code: 'P2002',
-            clientVersion: '7.10.1',
-            meta: { target: ['email'] },
-          },
-        ),
-      );
-
-      await expect(service.register(registerDto)).rejects.toThrow(
-        ConflictException,
-      );
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
     });
   });
-
-  describe('login', () => {
-    const loginDto = {
-      email: 'parent@example.com',
-      password: 'TestPass123!',
-    };
-
-    const activeUser = {
-      id: 'user-1',
-      fullName: 'Test Parent',
-      email: loginDto.email,
-      passwordHash: 'hashed-password',
-      role: 'PARENT',
-      status: 'ACTIVE',
-    };
-
-    it('should reject login when the email does not exist', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
-
-      await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
+  it('rejects a legacy mixed-case duplicate before hashing', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: user.id });
+    await expect(service.register(dto)).rejects.toThrow(ConflictException);
+    expect(hash).not.toHaveBeenCalled();
+  });
+  it('handles a concurrent database unique conflict', async () => {
+    prisma.user.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Synthetic conflict', {
+        code: 'P2002',
+        clientVersion: '7.10.1',
+      }),
+    );
+    await expect(service.register(dto)).rejects.toThrow(ConflictException);
+  });
+  it('preserves unexpected database failures', async () => {
+    const error = new Error('Synthetic database failure');
+    prisma.user.create.mockRejectedValue(error);
+    await expect(service.register(dto)).rejects.toBe(error);
+  });
+  it.each(['a'.repeat(73), '\u0639'.repeat(37), '\u{1F600}'.repeat(19)])(
+    'rejects oversized UTF-8 passwords without hashing',
+    async (password) => {
+      await expect(service.register({ ...dto, password })).rejects.toThrow(
+        BadRequestException,
       );
-
+      await expect(service.login({ ...dto, password })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(hash).not.toHaveBeenCalled();
       expect(compare).not.toHaveBeenCalled();
-      expect(redisMock.eval).toHaveBeenCalled();
+      expect(jwt.signAsync).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['\u0639'.repeat(36), '\u{1F600}'.repeat(18), '  TestPass123!  '])(
+    'preserves valid Unicode and password whitespace',
+    async (password) => {
+      await service.register({ ...dto, password });
+      expect(hash).toHaveBeenCalledWith(password, 12);
+    },
+  );
+  it('allows a single legacy mixed-case user without rewriting it', async () => {
+    const result = await service.login(dto);
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: { email: { equals: 'parent@example.com', mode: 'insensitive' } },
+      take: 2,
     });
-
-    it('should reject a password exceeding 72 bytes', async () => {
-      const longPassword = 'a'.repeat(73);
-
-      await expect(
-        service.login({
-          ...loginDto,
-          password: longPassword,
-        }),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(compare).not.toHaveBeenCalled();
-      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
-    });
-
-    it('should reject login when the password is incorrect', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(activeUser);
-      (compare as jest.Mock).mockResolvedValue(false);
-
-      await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
+    expect(protection.check).toHaveBeenCalledWith('parent@example.com');
+    expect(protection.finalizeSuccess).toHaveBeenCalledWith(
+      'parent@example.com',
+    );
+    expect(result.user).not.toHaveProperty('passwordHash');
+    expect(result.user.email).toBe(user.email);
+  });
+  it.each([{ users: [] }, { users: [user, { ...user, id: 'other' }] }])(
+    'rejects absent or ambiguous identities using a dummy comparison',
+    async ({ users }) => {
+      prisma.user.findMany.mockResolvedValue(users);
+      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+      expect(compare).toHaveBeenCalledWith(dto.password, 'synthetic-hash');
+      expect(protection.recordFailure).toHaveBeenCalledWith(
+        'parent@example.com',
       );
-
-      expect(jwtMock.signAsync).not.toHaveBeenCalled();
-      expect(redisMock.eval).toHaveBeenCalled();
-    });
-
-    it('should reject login for an inactive account', async () => {
-      prismaMock.user.findUnique.mockResolvedValue({
-        ...activeUser,
-        status: 'PENDING',
-      });
-      (compare as jest.Mock).mockResolvedValue(true);
-
-      await expect(service.login(loginDto)).rejects.toThrow(
-        ForbiddenException,
+      expect(jwt.signAsync).not.toHaveBeenCalled();
+    },
+  );
+  it('records an incorrect password and does not sign', async () => {
+    (compare as jest.Mock).mockResolvedValue(false);
+    await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+    expect(protection.recordFailure).toHaveBeenCalled();
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+  it.each(['PENDING', 'SUSPENDED'])(
+    'rejects inactive status %s',
+    async (status) => {
+      prisma.user.findMany.mockResolvedValue([{ ...user, status }]);
+      await expect(service.login(dto)).rejects.toThrow(ForbiddenException);
+      expect(jwt.signAsync).not.toHaveBeenCalled();
+      expect(protection.finalizeSuccess).not.toHaveBeenCalled();
+    },
+  );
+  it('does not sign when the initial security check fails', async () => {
+    protection.check.mockRejectedValue(new ServiceUnavailableException());
+    await expect(service.login(dto)).rejects.toThrow(
+      ServiceUnavailableException,
+    );
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
+  });
+  it('does not return a token if final Redis authorization fails', async () => {
+    protection.finalizeSuccess.mockRejectedValue(
+      new ServiceUnavailableException(),
+    );
+    await expect(service.login(dto)).rejects.toThrow(
+      ServiceUnavailableException,
+    );
+  });
+  it('cannot clear a lock that appears while signing', async () => {
+    jwt.signAsync.mockImplementation(async () => {
+      protection.finalizeSuccess.mockRejectedValue(
+        new HttpException('Locked', 429),
       );
-
-      expect(jwtMock.signAsync).not.toHaveBeenCalled();
-      expect(redisMock.del).not.toHaveBeenCalled();
+      return 'discarded-synthetic-token';
     });
-
-    it('should return an access token after successful login', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(activeUser);
-      (compare as jest.Mock).mockResolvedValue(true);
-      jwtMock.signAsync.mockResolvedValue('test-access-token');
-
-      const result = await service.login(loginDto);
-
-      expect(jwtMock.signAsync).toHaveBeenCalledWith({
-        sub: activeUser.id,
-        email: activeUser.email,
-        role: activeUser.role,
-      });
-      expect(redisMock.del).toHaveBeenCalled();
-      expect(result.access_token).toBe('test-access-token');
-      expect(result.user).not.toHaveProperty('passwordHash');
-    });
+    await expect(service.login(dto)).rejects.toMatchObject({ status: 429 });
+  });
+  it('does not clear failures when JWT signing fails', async () => {
+    const error = new Error('Synthetic signing error');
+    jwt.signAsync.mockRejectedValue(error);
+    await expect(service.login(dto)).rejects.toBe(error);
+    expect(protection.finalizeSuccess).not.toHaveBeenCalled();
   });
 });
