@@ -106,6 +106,8 @@ A random synthetic dummy bcrypt hash is generated lazily and cached for absent/a
 
 Runtime names: DATABASE_URL, DIRECT_URL (Prisma CLI), REDIS_URL, JWT_SECRET, PORT. Examples contain placeholders only. Never commit real environment files.
 
+Optional web integration: WEB_CORS_ORIGINS is a comma-separated list of exact HTTP(S) origins, without paths, wildcards or trailing slashes. Local development uses WEB_CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173 to match both explicit Vite origins; these are different origins even when they reach the same machine. Put this value in the backend runtime environment (the example file is not loaded automatically) and restart NestJS after changing it. When unset, CORS remains disabled: the API can be running while a browser preflight receives 404 without CORS headers. Configured origins may use GET/POST with Authorization and Content-Type; Retry-After is exposed to browser code. Credentials/cookies are not enabled. This is browser access configuration, not an authorization mechanism. Use only trusted HTTPS origins in deployed environments.
+
 Test-only names: NATIQ_TEST_ISOLATED, NATIQ_TEST_POSTGRES_PASSWORD, TEST_DATABASE_URL, TEST_REDIS_URL. Test setup generates a synthetic JWT secret and overrides runtime URLs only after validation. It never loads .env or falls back to development URLs. Do not use NODE_ENV=test as the only isolation proof.
 
 ## Safe test infrastructure
