@@ -68,7 +68,7 @@ Redis Lua serializes check/failure/success transitions. bcrypt, PostgreSQL and s
 
 ## Redis outage and deadline policy
 
-Both account protection and RedisThrottlerStorage have a 3000 ms operation deadline. A focused AuthRedisModule owns the connection so initial TCP/Redis handshake is bounded too. Offline command queuing is disabled, command queue length is bounded at 100, and automatic reconnect is disabled.
+Both account protection and AuthRateLimitStorage have a 3000 ms operation deadline. A focused AuthRedisModule owns the connection so initial TCP/Redis handshake is bounded too. Offline command queuing is disabled, command queue length is bounded at 100, and automatic reconnect is disabled.
 
 The installed client's command timeout alone does not bound all in-flight responses. On operation deadline, the shared security connection is destroyed to flush pending work. Other requests using that connection also fail closed. Redis may already have executed a submitted command; a timeout is not a rollback and no token is returned on the affected login path.
 

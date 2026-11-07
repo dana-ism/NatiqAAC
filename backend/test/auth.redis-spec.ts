@@ -102,21 +102,45 @@ describe('Real isolated Redis login protection', () => {
       response: { retryAfterSeconds: 30 },
     });
   });
-  it('bounds legacy stages once and preserves the existing lock', async () => {
-    const { email, keys } = identity();
-    await redis.set(keys.stage, '12');
-    await redis.set(keys.lock, '1', { PX: 30000 });
-    await expect(protection.check(email)).rejects.toMatchObject({
-      status: 429,
-    });
-    const ttl = await redis.pTTL(keys.stage);
-    expect(ttl).toBeGreaterThan(1820000);
-    expect(await redis.get(keys.stage)).toBe('12');
-    await expect(protection.check(email)).rejects.toMatchObject({
-      status: 429,
-    });
-    expect(await redis.pTTL(keys.stage)).toBeLessThanOrEqual(ttl);
-  });
+  it.each([12, 13])(
+    'bounds legacy stage %s once and preserves the existing lock',
+    async (stage) => {
+      const { email, keys } = identity();
+      await redis.set(keys.stage, String(stage));
+      await redis.set(keys.lock, '1', { PX: 30000 });
+      await expect(protection.check(email)).rejects.toMatchObject({
+        status: 429,
+      });
+      const ttl = await redis.pTTL(keys.stage);
+      expect(ttl).toBeGreaterThan(1820000);
+      expect(await redis.get(keys.stage)).toBe(String(stage));
+      await expect(protection.check(email)).rejects.toMatchObject({
+        status: 429,
+      });
+      expect(await redis.pTTL(keys.stage)).toBeLessThanOrEqual(ttl);
+    },
+  );
+  it.each(['0.5', '5.5', '-1', 'invalid', '', '14', '1e309', 'nan'])(
+    'rejects invalid stage %j before checking, counting or authorizing',
+    async (stage) => {
+      const { email, keys } = identity();
+      await redis.set(keys.stage, stage);
+      await redis.set(keys.failures, '4', { PX: 60000 });
+      for (const operation of [
+        'check',
+        'recordFailure',
+        'finalizeSuccess',
+      ] as const) {
+        await expect(protection[operation](email)).rejects.toThrow(
+          'AUTH invalid stage',
+        );
+        expect(await redis.get(keys.stage)).toBe(stage);
+        expect(await redis.pTTL(keys.stage)).toBe(-1);
+        expect(await redis.get(keys.failures)).toBe('4');
+        expect(await redis.exists(keys.lock)).toBe(0);
+      }
+    },
+  );
   it('resets an unlocked account on successful authorization', async () => {
     const { email, keys } = identity();
     await redis.set(keys.stage, '2', { PX: 1800000 });

@@ -11,7 +11,10 @@ local operation = ARGV[1]
 local lockTtl = redis.call('PTTL', KEYS[3])
 if lockTtl == -1 then return redis.error_reply('AUTH invalid persistent lock') end
 local stage = tonumber(redis.call('GET', KEYS[2]) or '0')
-if not stage or stage < 0 then return redis.error_reply('AUTH invalid stage') end
+-- Current stages cap at 6; the previous policy could persist stages up to 13.
+if not stage or stage < 0 or stage > 13 or stage % 1 ~= 0 then
+  return redis.error_reply('AUTH invalid stage')
+end
 -- Bound legacy stages without deleting or shortening an existing lock.
 if redis.call('PTTL', KEYS[2]) == -1 then
   redis.call('PEXPIRE', KEYS[2], math.max(lockTtl, 0) + 1800000)
