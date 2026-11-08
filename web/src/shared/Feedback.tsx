@@ -1,4 +1,5 @@
 import { errorMessage } from "./api";
+import { useI18n } from "../i18n/context";
 export function ErrorAlert({
   error,
   context = "session",
@@ -6,23 +7,21 @@ export function ErrorAlert({
   error: unknown;
   context?: "login" | "register" | "session";
 }) {
+  const { t } = useI18n();
   if (!error) return null;
   return (
     <div className="alert error-alert" role="alert">
       <span aria-hidden="true">!</span>
-      <p>{errorMessage(error, context)}</p>
+      <p>{errorMessage(error, context, t)}</p>
     </div>
   );
 }
-export function Loading({
-  label = "جارٍ التحقق من جلستك…",
-}: {
-  label?: string;
-}) {
+export function Loading({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <div className="loading-state" role="status">
       <span className="spinner" aria-hidden="true" />
-      <p>{label}</p>
+      <p>{label ?? t("session.checking")}</p>
     </div>
   );
 }

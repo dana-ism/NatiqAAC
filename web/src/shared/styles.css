@@ -410,10 +410,10 @@ p {
   display: grid;
   place-items: center;
   position: absolute;
-  left: 4px;
+  inset-inline-end: 4px;
   top: 4px;
-  width: 43px;
-  height: 43px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -656,7 +656,7 @@ p {
 .skip-link {
   position: fixed;
   top: 8px;
-  right: 8px;
+  inset-inline-start: 8px;
   z-index: 10;
   background: var(--white);
   padding: 12px;
@@ -664,6 +664,9 @@ p {
 }
 .skip-link:focus {
   transform: translateY(0);
+}
+.welcome-page .skip-link {
+  min-height: 44px;
 }
 @media (min-width: 1450px) {
   .auth-layout {
@@ -763,5 +766,392 @@ p {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Welcome-only refinements keep login and registration composition unchanged. */
+.welcome-page .site-header {
+  height: 104px;
+}
+.welcome-page .brand-caption {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+.welcome-page .brand {
+  min-height: 48px;
+}
+.welcome-page .auth-layout {
+  min-height: 600px;
+}
+.welcome-page .story-panel {
+  padding: 40px 48px 24px;
+}
+.welcome-page .story-panel h1 {
+  font-size: clamp(28px, 2.6vw, 38px);
+  line-height: 1.65;
+}
+.welcome-page .story-panel h1 span {
+  display: block;
+}
+.welcome-page .story-copy {
+  font-size: 16px;
+  line-height: 1.9;
+  max-width: 400px;
+  margin-top: 16px;
+}
+.welcome-page .illustration {
+  height: 344px;
+  max-width: 400px;
+  margin: 16px auto 0;
+  flex-shrink: 0;
+}
+.welcome-page .message-card {
+  top: 224px;
+  font-size: 14px;
+  padding: 12px 16px;
+}
+.welcome-page .note-bottom {
+  top: 304px;
+  left: 19%;
+  padding: 8px 16px;
+  font-size: 12px;
+}
+.welcome-page .form-panel {
+  padding: 40px;
+}
+.welcome-page .home-card {
+  max-width: 420px;
+}
+.welcome-page .home-card h2 {
+  font-size: 28px;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+.welcome-page .identity-card {
+  padding: 24px;
+  margin: 0 0 16px;
+  border-radius: 16px;
+  gap: 16px;
+}
+.welcome-page .identity-card .section-tag {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.welcome-page .identity-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+}
+.welcome-page .identity-email {
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+.welcome-page .role-badge {
+  font-size: 14px;
+}
+.welcome-page .verified-badge {
+  font-size: 14px;
+  padding: 8px 0;
+  gap: 8px;
+  margin: 0 0 24px;
+  background: transparent;
+}
+.welcome-page .verified-badge > span {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--mint);
+  font-size: 16px;
+}
+.welcome-page .discover-button {
+  min-height: 52px;
+  font-size: 16px;
+  padding: 12px 16px;
+  gap: 16px;
+  border-radius: 12px;
+}
+.welcome-page .discover-button svg {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+.logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--primary);
+  font-size: 14px;
+  padding: 12px 16px;
+  margin-top: 16px;
+}
+.logout-button:hover {
+  background: var(--surface);
+}
+.welcome-page .local-signout-note {
+  font-size: 12px;
+  margin-top: 8px;
+  line-height: 1.8;
+}
+.coming-soon {
+  margin: 32px 4% 0;
+  min-height: 224px;
+  padding: 40px 48px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--white);
+  scroll-margin-block-start: 24px;
+}
+.coming-soon-symbol {
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+  background: var(--mint);
+  color: var(--primary);
+  border-radius: 24px;
+  flex-shrink: 0;
+}
+.coming-soon-symbol svg {
+  width: 40px;
+  height: 40px;
+}
+.coming-soon-badge {
+  display: inline-block;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 16px;
+  margin-bottom: 8px;
+}
+.coming-soon-copy {
+  min-width: 0;
+}
+.coming-soon h2 {
+  font-size: 24px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.coming-soon p {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.9;
+}
+.welcome-page .site-footer {
+  font-size: 14px;
+  justify-content: center;
+  padding-block: 24px;
+}
+@media (max-width: 1000px) {
+  .welcome-page .story-panel,
+  .welcome-page .form-panel {
+    padding: 32px 24px;
+  }
+  .welcome-page .story-panel h1 {
+    font-size: 28px;
+  }
+  .welcome-page .identity-card {
+    padding: 16px;
+  }
+  .welcome-page .identity-icon {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .welcome-page .site-header {
+    height: 96px;
+  }
+  .welcome-page .story-panel,
+  .welcome-page .form-panel {
+    padding: 24px;
+  }
+  .welcome-page .auth-layout {
+    min-height: 0;
+  }
+  .welcome-page .illustration {
+    display: block;
+    height: 296px;
+    max-width: 300px;
+    margin-top: 8px;
+  }
+  .welcome-page .picture-card {
+    width: 104px;
+    padding: 8px 8px 16px;
+    border-radius: 16px;
+  }
+  .welcome-page .picture-card svg {
+    height: 64px;
+  }
+  .welcome-page .picture-sun {
+    top: 24px;
+    left: 12%;
+  }
+  .welcome-page .picture-heart {
+    top: 40px;
+    left: 53%;
+  }
+  .welcome-page .message-card {
+    top: 176px;
+    left: 4%;
+    width: 92%;
+  }
+  .welcome-page .note-bottom {
+    top: 256px;
+    left: 14%;
+  }
+  .welcome-page .home-card h2 {
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+  .welcome-page .identity-card {
+    padding: 16px;
+  }
+  .welcome-page .verified-badge {
+    margin-bottom: 16px;
+  }
+  .coming-soon {
+    padding: 24px;
+    margin-top: 24px;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .coming-soon-symbol {
+    display: none;
+  }
+  .coming-soon h2 {
+    font-size: 22px;
+  }
+}
+/* Locale-aware text flow; the original artwork keeps its physical composition. */
+:root[dir="ltr"] .auth-layout > *,
+:root[dir="ltr"] .message-card,
+:root[dir="ltr"] .floating-note {
+  direction: ltr;
+}
+:root[dir="ltr"] .input-wrap input[name="password"] {
+  padding-left: 14px;
+  padding-right: 52px;
+}
+:root[dir="ltr"] .directional-arrow {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--white);
+  gap: 2px;
+  flex-shrink: 0;
+}
+.language-switcher button {
+  min-height: 44px;
+  min-width: 64px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primary);
+  font-size: 14px;
+}
+.language-switcher button[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--white);
+  font-weight: bold;
+}
+.auth-layout > *,
+.header-actions,
+.coming-soon-copy {
+  min-width: 0;
+}
+:root[lang="en"] .story-panel h1 {
+  letter-spacing: -0.5px;
+  line-height: 1.4;
+}
+:root[lang="en"] .welcome-page .story-panel h1 {
+  font-size: clamp(28px, 2.4vw, 36px);
+}
+:root[lang="en"] .picture-card span {
+  font-size: 12px;
+}
+:root[lang="en"] .picture-sun {
+  left: 12%;
+}
+:root[lang="en"] .site-shell:not(.welcome-page) .illustration {
+  height: 344px;
+}
+:root[lang="en"] .site-shell:not(.welcome-page) .note-bottom {
+  top: 304px;
+}
+:root[lang="en"] .message-card {
+  gap: 8px;
+  font-size: 12px;
+}
+:root[lang="en"] .floating-note {
+  font-size: 12px;
+}
+.brand {
+  min-height: 48px;
+}
+.auth-tabs a,
+.switch-copy a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+@media (max-width: 1000px) {
+  .header-actions .header-label {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .site-header,
+  .welcome-page .site-header {
+    height: auto;
+    min-height: 104px;
+    padding-block: 16px;
+    padding-inline: 4%;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    gap: 8px;
+  }
+  .brand strong {
+    font-size: 26px;
+  }
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+  }
+  .brand-caption {
+    font-size: 12px;
+    max-width: 140px;
+  }
+  :root[lang="en"] .welcome-page .story-panel h1 {
+    font-size: 28px;
+  }
+  :root[lang="en"] .welcome-page .message-card {
+    font-size: 12px;
   }
 }

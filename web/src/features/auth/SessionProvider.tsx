@@ -10,6 +10,7 @@ import { authApi } from "./api";
 import { SessionContext, type Session } from "./session-context";
 import type { Credentials, Identity } from "./types";
 import { expiresAt } from "./validation";
+import type { MessageKey } from "../../i18n/ar";
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const token = useRef<string | null>(null);
@@ -20,7 +21,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
   const [status, setStatus] = useState<Session["status"]>("anonymous");
   const [identity, setIdentity] = useState<Identity | null>(null);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<MessageKey | "">("");
   const [failure, setFailure] = useState<unknown>(null);
 
   const cancelPending = useCallback(() => {
@@ -30,7 +31,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clear = useCallback(
-    (message = "") => {
+    (message: MessageKey | "" = "") => {
       cancelPending();
       token.current = null;
       setIdentity(null);
@@ -44,14 +45,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const verify = useCallback(
     async (candidate: string, run: number, signal: AbortSignal) => {
       if (expiresAt(candidate) <= Date.now()) {
-        clear("انتهت جلستك. سجّل الدخول مجددًا.");
+        clear("session.expired");
         return false;
       }
       try {
         const current = await authApi.me(candidate, signal);
         if (run !== generation.current) return false;
         if (expiresAt(candidate) <= Date.now()) {
-          clear("انتهت جلستك. سجّل الدخول مجددًا.");
+          clear("session.expired");
           return false;
         }
         setIdentity(current);
@@ -64,7 +65,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           error instanceof ApiError &&
           (error.status === 401 || error.status === 403)
         ) {
-          clear("انتهت الجلسة أو لم تعد صالحة. سجّل الدخول مجددًا.");
+          clear("error.session");
           return false;
         } else {
           setIdentity(null);
@@ -97,7 +98,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setStatus("checking");
       clearTimeout(expiryTimer.current);
       expiryTimer.current = setTimeout(
-        () => clear("انتهت جلستك. سجّل الدخول مجددًا."),
+        () => clear("session.expired"),
         expiry - Date.now(),
       );
       return verify(result.access_token, run, requestSignal);
@@ -137,7 +138,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         failure,
         login,
         retry,
-        signOut: () => clear("تم تسجيل الخروج من هذا المتصفح."),
+        signOut: () => clear("session.signedOut"),
       }}
     >
       {children}

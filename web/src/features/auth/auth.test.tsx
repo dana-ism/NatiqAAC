@@ -332,6 +332,79 @@ describe("Forms and memory-only authentication with controlled HTTP responses", 
   });
 });
 
+describe("Authenticated welcome presentation", () => {
+  it("shows accurate minimal identity, a single honest status and clearly unfinished content", async () => {
+    mount();
+    await login();
+    expect(screen.getByText(identity.email)).toBeVisible();
+    expect(screen.getByText("ولي أمر")).toBeVisible();
+    expect(screen.queryByText(identity.userId)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "نتواصل بطرق مختلفة ونلتقي في الفهم",
+    );
+    expect(
+      screen.getAllByText("تم تسجيل الدخول", { exact: true }),
+    ).toHaveLength(1);
+    for (const removed of [
+      "تم التحقق من الحساب",
+      "تم تسجيل دخولك بنجاح",
+      "لكل تعبير مساحة",
+      "لأن لكل تعبير قيمة",
+      "خطوة أقرب إلى التعبير",
+      "معرّف الحساب",
+    ]) {
+      expect(
+        screen.queryByText(removed, { exact: false }),
+      ).not.toBeInTheDocument();
+    }
+    expect(
+      screen.getByRole("region", { name: "تجارب جديدة في الطريق" }),
+    ).toHaveTextContent("قريبًا");
+    expect(
+      screen.getByRole("region", { name: "تجارب جديدة في الطريق" }),
+    ).toHaveTextContent(
+      "نعمل الآن على تجهيز تجارب التواصل والتعلّم، وستظهر هنا قريبًا.",
+    );
+    expect(
+      screen
+        .getByRole("region", { name: "تجارب جديدة في الطريق" })
+        .querySelector("a,button"),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "تسجيل الخروج" }),
+    ).toHaveAccessibleDescription("سيتم إنهاء جلستك على هذا الجهاز فقط.");
+  });
+  it.each([false, true])(
+    "discovers the real preview section and respects reduced motion=%s",
+    async (reduced) => {
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn().mockReturnValue({ matches: reduced }),
+      );
+      mount();
+      const input = await login();
+      const scroll = vi.fn();
+      Object.defineProperty(
+        document.getElementById("coming-soon"),
+        "scrollIntoView",
+        { value: scroll, configurable: true },
+      );
+      await input.click(
+        screen.getByRole("button", { name: "اكتشف ما ينتظرك" }),
+      );
+      expect(scroll).toHaveBeenCalledWith({
+        behavior: reduced ? "instant" : "smooth",
+        block: "start",
+      });
+      expect(
+        screen.getByRole("heading", { name: "تجارب جديدة في الطريق" }),
+      ).toHaveFocus();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
+});
+
 describe("API boundaries and validation", () => {
   it("enforces password UTF-8 length and preserves valid whitespace", () => {
     expect(

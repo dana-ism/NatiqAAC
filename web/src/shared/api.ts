@@ -1,3 +1,5 @@
+import { translator, type Translate } from "../i18n/messages";
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -107,35 +109,35 @@ export async function request<T>(
 export function errorMessage(
   error: unknown,
   context: "login" | "register" | "session" = "session",
+  t: Translate = translator("ar"),
 ): string {
-  if (!(error instanceof ApiError))
-    return "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.";
-  if (error.kind === "network")
-    return "تعذّر الاتصال بالخدمة. تحقق من اتصالك وحاول مرة أخرى.";
-  if (error.kind === "config")
-    return "عنوان الخدمة غير مُهيّأ بشكل صحيح. يرجى التواصل مع فريق التطبيق.";
-  if (error.kind === "contract")
-    return "وصل رد غير متوقع من الخدمة. يرجى المحاولة لاحقًا.";
+  if (!(error instanceof ApiError)) return t("error.unexpected");
+  if (error.kind === "network") return t("error.network");
+  if (error.kind === "config") return t("error.config");
+  if (error.kind === "contract") return t("error.contract");
   switch (error.status) {
     case 400:
-      return "بعض البيانات غير مقبولة. راجع الحقول وحاول مرة أخرى.";
+      return t("error.badRequest");
     case 401:
-      return context === "login"
-        ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
-        : "انتهت الجلسة أو لم تعد صالحة. سجّل الدخول مجددًا.";
+      return context === "login" ? t("error.credentials") : t("error.session");
     case 403:
-      return "هذا الحساب غير نشط. يرجى التواصل مع فريق التطبيق.";
+      return t("error.inactive");
     case 409:
       return context === "register"
-        ? "هذا البريد مسجّل بالفعل. يمكنك تسجيل الدخول إلى حسابك."
-        : "تعذّر إتمام الطلب بسبب تعارض في البيانات.";
+        ? t("error.duplicate")
+        : t("error.conflict");
     case 429:
       return error.retryAfterSeconds === undefined
-        ? "طلبات كثيرة في وقت قصير. يرجى المحاولة لاحقًا."
-        : `طلبات كثيرة في وقت قصير. يمكنك المحاولة بعد ${error.retryAfterSeconds} ثانية.`;
+        ? t("error.rateLimit")
+        : t(
+            error.retryAfterSeconds === 1
+              ? "error.retrySecond"
+              : "error.retrySeconds",
+            { seconds: error.retryAfterSeconds },
+          );
     case 503:
-      return "الخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا.";
+      return t("error.unavailable");
     default:
-      return "تعذّر إتمام الطلب. يرجى المحاولة لاحقًا.";
+      return t("error.request");
   }
 }

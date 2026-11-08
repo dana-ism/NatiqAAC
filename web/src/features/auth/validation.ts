@@ -1,23 +1,23 @@
 import type { Registration } from "./types";
-export type FieldErrors = Partial<Record<keyof Registration, string>>;
+import type { MessageKey } from "../../i18n/ar";
+export type FieldErrors = Partial<Record<keyof Registration, MessageKey>>;
 export function validate(values: Registration, register: boolean): FieldErrors {
   const errors: FieldErrors = {};
   if (register && !values.fullName.trim())
-    errors.fullName = "أدخل الاسم الكامل.";
+    errors.fullName = "validation.nameRequired";
   else if (register && [...values.fullName.trim()].length > 100)
-    errors.fullName = "يجب ألا يتجاوز الاسم 100 حرف.";
-  if (!values.email.trim()) errors.email = "أدخل البريد الإلكتروني.";
+    errors.fullName = "validation.nameLong";
+  if (!values.email.trim()) errors.email = "validation.emailRequired";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim()))
-    errors.email = "أدخل بريدًا إلكترونيًا صالحًا.";
-  if (!values.password) errors.password = "أدخل كلمة المرور.";
+    errors.email = "validation.emailInvalid";
+  if (!values.password) errors.password = "validation.passwordRequired";
   else if ([...values.password].length < 8)
-    errors.password = "استخدم 8 أحرف على الأقل.";
+    errors.password = "validation.passwordShort";
   else if (
     [...values.password].length > 72 ||
     new TextEncoder().encode(values.password).length > 72
   )
-    errors.password =
-      "كلمة المرور طويلة جدًا؛ الحد 72 بايت، وقد تشغل الأحرف العربية أكثر من بايت.";
+    errors.password = "validation.passwordLong";
   return errors;
 }
 

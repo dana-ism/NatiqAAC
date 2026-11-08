@@ -62,7 +62,7 @@ test("real browser registration, login, current user, reload and local sign-out"
     await page.getByLabel("كلمة المرور", { exact: true }).fill(password);
     await page.getByRole("button", { name: /^تسجيل الدخول/ }).click();
     await expect(page.getByText(email, { exact: true })).toBeVisible();
-    await expect(page.getByText(id!, { exact: true })).toBeVisible();
+    await expect(page.getByText(id!, { exact: true })).toHaveCount(0);
     expect(
       await page.evaluate(() => localStorage.length + sessionStorage.length),
     ).toBe(0);

@@ -1,15 +1,20 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Mark } from "./Icons";
+import { useI18n } from "../i18n/context";
+import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 
-function Illustration() {
+function Illustration({ welcome = false }: { welcome?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="illustration" aria-hidden="true">
       <div className="orbit orbit-one" />
       <div className="orbit orbit-two" />
-      <div className="floating-note note-top">
-        <span className="note-dot" /> لكل تعبير مساحة
-      </div>
+      {!welcome && (
+        <div className="floating-note note-top">
+          <span className="note-dot" /> {t("art.space")}
+        </div>
+      )}
       <div className="picture-card picture-sun">
         <svg viewBox="0 0 100 90" fill="none">
           <circle cx="50" cy="40" r="19" fill="currentColor" />
@@ -20,7 +25,7 @@ function Illustration() {
             strokeLinecap="round"
           />
         </svg>
-        <span>صباح الخير</span>
+        <span>{t("art.morning")}</span>
       </div>
       <div className="picture-card picture-heart">
         <svg viewBox="0 0 100 90">
@@ -29,74 +34,107 @@ function Illustration() {
             fill="currentColor"
           />
         </svg>
-        <span>أحبّك</span>
+        <span>{t("art.love")}</span>
       </div>
       <div className="message-card">
-        <span>أنا أريد</span>
+        <span>{t("art.want")}</span>
         <span className="message-symbol">☀</span>
-        <span>أن أعبّر</span>
-        <span className="message-arrow">←</span>
+        <span>{t("art.express")}</span>
+        <span className="message-arrow directional-arrow">←</span>
       </div>
       <div className="floating-note note-bottom">
-        <span className="check-circle">✓</span> التواصل يبدأ بخطوة
+        <span className="check-circle">✓</span> {t("art.step")}
       </div>
-      <span className="spark spark-one">✦</span>
-      <span className="spark spark-two">✦</span>
+      {!welcome && (
+        <>
+          <span className="spark spark-one">✦</span>
+          <span className="spark spark-two">✦</span>
+        </>
+      )}
     </div>
   );
 }
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({
+  children,
+  welcome = false,
+  afterContent,
+}: {
+  children: ReactNode;
+  welcome?: boolean;
+  afterContent?: ReactNode;
+}) {
+  const { t } = useI18n();
   return (
-    <div className="site-shell">
+    <div className={`site-shell${welcome ? " welcome-page" : ""}`}>
       <a className="skip-link" href="#main">
-        انتقل إلى المحتوى
+        {t("layout.skip")}
       </a>
       <header className="site-header">
-        <Link to="/login" className="brand" aria-label="ناطق، صفحة الدخول">
+        <Link
+          to={welcome ? "/home" : "/login"}
+          className="brand"
+          aria-label={t(welcome ? "brand.welcome" : "brand.login")}
+        >
           <Mark />
           <span>
             <strong>
-              ناطق<span className="brand-dot">.</span>
+              {t("brand.name")}
+              <span className="brand-dot">.</span>
             </strong>
-            <span className="brand-caption">مساحة للتواصل</span>
+            <span className="brand-caption">{t("brand.caption")}</span>
           </span>
         </Link>
-        <span className="header-label">
-          <span /> خطوة أقرب إلى التعبير
-        </span>
+        <div className="header-actions">
+          {!welcome && (
+            <span className="header-label">
+              <span /> {t("layout.header")}
+            </span>
+          )}
+          <LanguageSwitcher />
+        </div>
       </header>
       <div className="auth-layout">
         <aside className="story-panel">
-          <div className="eyebrow">
-            <span /> لأن لكل تعبير قيمة
-          </div>
+          {!welcome && (
+            <div className="eyebrow">
+              <span /> {t("layout.eyebrow")}
+            </div>
+          )}
           <h1>
-            نتواصل بطرق مختلفة.
-            <br />
-            <span>ونلتقي في الفهم.</span>
+            {welcome ? (
+              <>
+                {t("layout.headline")} <span>{t("layout.headlineEnd")}</span>
+              </>
+            ) : (
+              <>
+                {t("layout.headline")}.
+                <br />
+                <span>{t("layout.headlineEnd")}.</span>
+              </>
+            )}
           </h1>
-          <p className="story-copy">
-            مساحة تدعم التواصل والتعلّم، وتمنح أولياء الأمور بداية واضحة لمرافقة
-            أطفالهم.
-          </p>
-          <Illustration />
-          <div className="story-bottom">
-            <span className="story-line" />
-            <p>
-              خطوة صغيرة اليوم،
-              <br />
-              <strong>ومساحة أوسع للتواصل.</strong>
-            </p>
-          </div>
+          <p className="story-copy">{t("layout.description")}</p>
+          <Illustration welcome={welcome} />
+          {!welcome && (
+            <div className="story-bottom">
+              <span className="story-line" />
+              <p>
+                {t("layout.smallStep")}
+                <br />
+                <strong>{t("layout.moreSpace")}</strong>
+              </p>
+            </div>
+          )}
         </aside>
         <main id="main" className="form-panel" tabIndex={-1}>
           {children}
         </main>
       </div>
+      {afterContent}
       <footer className="site-footer">
-        <span>ناطق — نفتح مساحة لكل تعبير</span>
+        {!welcome && <span>{t("layout.footer")}</span>}
         <span>
-          واجهة أولياء الأمور <span className="footer-dot">·</span> NatiqAAC
+          {t("layout.parents")} <span className="footer-dot">·</span> NatiqAAC
         </span>
       </footer>
     </div>

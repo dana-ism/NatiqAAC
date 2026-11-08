@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import axe from "axe-core";
+import { ar } from "../src/i18n/ar";
+import { en } from "../src/i18n/en";
+import { localeStorageKey } from "../src/i18n/messages";
 
 declare global {
   interface Window {
@@ -24,6 +27,12 @@ async function accessible(page: Page) {
     })),
   );
   expect(violations).toEqual([]);
+  // Axe may focus the skip link. Keep that audit side effect out of visual captures.
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement)
+      document.activeElement.blur();
+    window.scrollTo({ top: 0, behavior: "instant" });
+  });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -127,10 +136,44 @@ for (const width of [375, 768, 1440]) {
       page.getByText("parent@example.com", { exact: true }),
     ).toBeVisible();
     await accessible(page);
+    await expect(
+      page.getByText("6fbbe1de-542e-409e-bbec-088c6c084416"),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("status").filter({ hasText: "تم تسجيل الدخول" }),
+    ).toHaveCount(1);
+    const bubble = await page
+      .locator(".welcome-page .note-bottom")
+      .boundingBox();
+    const bar = await page.locator(".welcome-page .message-card").boundingBox();
+    expect(bubble).not.toBeNull();
+    expect(bar).not.toBeNull();
+    expect(bubble!.y).toBeGreaterThan(bar!.y + bar!.height);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
     await page.screenshot({
       path: `test-results/home-${width}.png`,
       fullPage: true,
     });
+    const discover = page.getByRole("button", { name: "اكتشف ما ينتظرك" });
+    await discover.focus();
+    await expect(discover).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("heading", { name: "تجارب جديدة في الطريق" }),
+    ).toBeFocused();
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    await expect(
+      page.getByRole("heading", { name: "تجارب جديدة في الطريق" }),
+    ).toBeInViewport();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await discover.click();
+    await expect(
+      page.getByRole("heading", { name: "تجارب جديدة في الطريق" }),
+    ).toBeInViewport();
     expect(
       await page.evaluate(() => localStorage.length + sessionStorage.length),
     ).toBe(0);
@@ -140,6 +183,183 @@ for (const width of [375, 768, 1440]) {
     await expect(page).toHaveURL(/\/login$/);
   });
 }
+test("welcome reflows with a long email and 200% CSS zoom (mocked API)", async ({
+  page,
+}) => {
+  const email = `${"parent".repeat(10)}@example.com`;
+  await page.route("http://localhost:3000/auth/me", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        userId: "6fbbe1de-542e-409e-bbec-088c6c084416",
+        email,
+        role: "PARENT",
+      }),
+    }),
+  );
+  await page.setViewportSize({ width: 375, height: 1000 });
+  await page.goto("/login");
+  await page.getByLabel("البريد الإلكتروني").fill("parent@example.com");
+  await page.getByLabel("كلمة المرور", { exact: true }).fill("TestPass123!");
+  await page.getByRole("button", { name: /^تسجيل الدخول/ }).click();
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  for (const zoom of ["1", "2"]) {
+    await page.setViewportSize({
+      width: zoom === "1" ? 375 : 1440,
+      height: 1000,
+    });
+    await page.evaluate((value) => {
+      document.body.style.zoom = value;
+    }, zoom);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    for (const name of ["اكتشف ما ينتظرك", "تسجيل الخروج"]) {
+      const box = await page
+        .getByRole("button", { name, exact: true })
+        .boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
+for (const width of [375, 768, 1440]) {
+  test(`Arabic/English navigation, persistence and accessible reflow at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/login");
+    await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+    const english = page.getByRole("button", { name: "English", exact: true });
+    await english.focus();
+    await page.keyboard.press("Enter");
+    await expect(english).toBeFocused();
+    await expect(english).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+    await expect(page).toHaveTitle("Sign in | Natiq");
+    await accessible(page);
+    await page.screenshot({
+      path: `test-results/login-en-${width}.png`,
+      fullPage: true,
+    });
+    await page
+      .getByRole("link", { name: en["auth.register"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: en["auth.registerTitle"] }),
+    ).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+    await page.getByRole("button", { name: "العربية", exact: true }).click();
+    await expect(page.getByLabel(ar["auth.fullName"])).toBeVisible();
+    await page.getByRole("button", { name: "English", exact: true }).click();
+    await accessible(page);
+    await page.screenshot({
+      path: `test-results/register-en-${width}.png`,
+      fullPage: true,
+    });
+    await page.getByLabel(en["auth.fullName"]).fill("Synthetic Parent");
+    await page.getByLabel(en["auth.email"]).fill("parent@example.com");
+    await page
+      .getByLabel(en["auth.password"], { exact: true })
+      .fill("TestPass123!");
+    await page
+      .getByRole("button", { name: en["auth.createParent"], exact: true })
+      .click();
+    await expect(page.getByText(en["auth.registered"])).toBeVisible();
+    await page.getByLabel(en["auth.email"]).fill("parent@example.com");
+    await page
+      .getByLabel(en["auth.password"], { exact: true })
+      .fill("TestPass123!");
+    await page
+      .getByRole("button", { name: en["auth.login"], exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: en["home.title"] }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(en["role.PARENT"], { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("parent@example.com", { exact: true }),
+    ).toHaveAttribute("dir", "ltr");
+    await accessible(page);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    const bubble = await page.locator(".note-bottom").boundingBox();
+    const bar = await page.locator(".message-card").boundingBox();
+    expect(bubble!.y).toBeGreaterThan(bar!.y + bar!.height);
+    // Native language names remain in their own script; the rest of English copy is English.
+    expect(
+      (await page.locator("body").innerText()).replaceAll("العربية", ""),
+    ).not.toMatch(/[\u0600-\u06ff]/);
+    await page.screenshot({
+      path: `test-results/home-en-${width}.png`,
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: en["home.discover"] }).focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("heading", { name: en["home.futureTitle"] }),
+    ).toBeFocused();
+    await expect(
+      page.getByRole("heading", { name: en["home.futureTitle"] }),
+    ).toBeInViewport();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.getByRole("button", { name: en["home.discover"] }).click();
+    await expect(
+      page.getByRole("heading", { name: en["home.futureTitle"] }),
+    ).toBeInViewport();
+    if (width === 1440) {
+      await page.evaluate(() => {
+        document.body.style.zoom = "2";
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: "test-results/home-en-zoom-200.png",
+        fullPage: true,
+      });
+      await page.evaluate(() => {
+        document.body.style.zoom = "1";
+      });
+    }
+    await page.getByRole("button", { name: "العربية", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(
+      page.getByRole("heading", { name: ar["home.title"] }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "English", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: en["home.title"] }),
+    ).toBeVisible();
+    expect(await page.evaluate(() => ({ ...localStorage }))).toEqual({
+      [localeStorageKey]: "en",
+    });
+    expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
+    await page
+      .getByRole("button", { name: en["home.signOut"], exact: true })
+      .click();
+    await expect(page.getByText(en["session.signedOut"])).toBeVisible();
+    await page.goto("/home");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(
+      page.getByRole("heading", { name: en["auth.loginTitle"] }),
+    ).toBeVisible();
+  });
+}
+
 test("idle expiry removes protected content (mocked API)", async ({ page }) => {
   await page.route("http://localhost:3000/auth/login", (route) =>
     route.fulfill({

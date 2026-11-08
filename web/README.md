@@ -30,6 +30,7 @@ If a connection error remains, first check `http://localhost:3000/`, then inspec
 - `src/app`: routes and page title/focus updates.
 - `src/features/auth`: DTO-shaped requests, response guards, session provider, forms, protected identity page, validation and component/API tests.
 - `src/shared`: HTTP error handling, layout, form feedback, SVG decoration and provisional CSS tokens.
+- `src/i18n`: typed Arabic/English resources, locale provider, translation hook and shared language switcher.
 - `tests`: Playwright browser flows and opt-in isolated real API smoke test.
 
 | Endpoint              | Request                         | Success                                                                       |
@@ -38,7 +39,7 @@ If a connection error remains, first check `http://localhost:3000/`, then inspec
 | `POST /auth/login`    | `{ email, password }`           | 200: `{ message, access_token, user: { id, fullName, email, role, status } }` |
 | `GET /auth/me`        | Bearer authorization header     | 200: `{ userId, email, role }`                                                |
 
-Name is trimmed; email is trimmed/lowercased. Password is preserved exactly and checked for 8–72 Unicode code points and at most 72 UTF-8 bytes. The browser's lightweight email check is usability validation; backend DTOs remain authoritative. Registration sends no role/status. Safe Arabic messages cover 400/401/403/409/429/503, unexpected replies, configuration and network failures. Raw server messages are not rendered. Retry information comes only from `Retry-After` (seconds/date) or the account-lock response; no countdown is fabricated. Requests have a 15-second client timeout and do not automatically retry registration or login.
+Name is trimmed; email is trimmed/lowercased. Password is preserved exactly and checked for 8–72 Unicode code points and at most 72 UTF-8 bytes. The browser's lightweight email check is usability validation; backend DTOs remain authoritative. Registration sends no role/status. Safe localized messages cover 400/401/403/409/429/503, unexpected replies, configuration and network failures. Raw server messages are not rendered. Retry information comes only from `Retry-After` (seconds/date) or the account-lock response; no countdown is fabricated. Requests have a 15-second client timeout and do not automatically retry registration or login.
 
 ## Session and security decisions
 
@@ -50,9 +51,19 @@ A page refresh, closing the tab or opening another tab starts without a session.
 
 The `:root` CSS variables in `src/shared/styles.css` are **provisional, authentication-only tokens**, not official NatiqAAC branding. Primary teal `#176B68`, ink `#21363D`, pale surface `#F7FAF8`, mint `#DDF3EE`, and a decorative warm accent form the theme. Accent colors are not used as low-contrast body text. Arabic uses locally available Tahoma/Segoe UI/Arial: no external font requests or font binaries. SVG artwork is original code decoration, hidden from assistive technology, and illustrates communication without representing working AAC controls.
 
-The document is `lang=ar dir=rtl`; layout uses logical spacing and isolated LTR email/ID fields. Copy is currently Arabic only; English translation is not implemented. Add a locale/copy layer and set document `lang`/`dir` for future English support. Forms use persistent labels, autocomplete, linked validation messages, focus on the first invalid field, live feedback, keyboard-operated visibility buttons and visible focus. Route changes move focus to content. Layout covers phone/tablet/desktop, reduced-motion preferences and reflow. Automated axe checks target applicable WCAG AA rules; they do not replace manual screen-reader or full WCAG assessment.
+The document uses `lang=ar dir=rtl` or `lang=en dir=ltr`; layout uses logical spacing and isolated LTR email fields. The original illustration and logo are not mirrored; only directional action arrows change direction. Forms use persistent labels, autocomplete, linked validation messages, focus on the first invalid field, live feedback, keyboard-operated visibility buttons and visible focus. Route changes move focus to content; language changes retain the switcher's focus. Layout covers phone/tablet/desktop, reduced-motion preferences and reflow. Automated axe checks target applicable WCAG AA rules; they do not replace manual screen-reader or full WCAG assessment.
+
+## Arabic and English
+
+Arabic is the default regardless of browser language. A single reusable keyboard-accessible switcher offers `العربية` and `English` on every page, with native-language labels and a pressed state. Switching updates existing content, validation errors, service errors, session notices, document title, description and `html` language/direction without reloading, clearing form fields, or repeating authentication requests.
+
+The small internal implementation uses React context and centralized flat, namespaced keys in `src/i18n/ar.ts` and `en.ts`; no i18n dependency is needed for these two static locales. Arabic defines the typed key set and English must satisfy the same complete schema. Missing/empty entries fall back to Arabic; unknown runtime keys receive a safe generic message, never a raw key. `Retry-After` uses parameter substitution and distinguishes English singular/plural seconds. Validation and session notices retain translation keys rather than frozen display strings. Resource copy is rendered as React text, never HTML.
+
+Only an explicit language selection is saved under `natiqaac.locale` in localStorage. Only `ar` and `en` are accepted; missing/invalid values default to Arabic. Blocked reads/writes are handled without crashing, although persistence then cannot be guaranteed. The choice survives navigation and reload; authentication does not. JWTs, identity and credentials remain out of browser storage. No cross-tab synchronization or browser-language detection is implemented. To add a future locale, add a typed resource and update the locale union, preference validation, switcher, direction mapping and tests together.
 
 ## Verification
+
+The authenticated welcome page shows only the email, readable role, and a signed-in status; it does not imply verified email ownership or expose the account UUID. Its primary action scrolls to the honest Coming Soon section and focuses its heading, with immediate scrolling for reduced motion. Sign-out remains local to this browser session. Welcome-specific styling preserves the original illustration and leaves the login/register presentation unchanged. Browser coverage includes keyboard scrolling, illustration separation, long email reflow, and a 200% CSS zoom layout stress check; this does not replace manual browser zoom or screen-reader testing.
 
 ```powershell
 npm.cmd run typecheck

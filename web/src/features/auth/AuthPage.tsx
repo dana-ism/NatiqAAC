@@ -6,8 +6,10 @@ import { validate, type FieldErrors } from "./validation";
 import { Eye } from "../../shared/Icons";
 import { ErrorAlert } from "../../shared/Feedback";
 import type { Registration } from "./types";
+import { useI18n } from "../../i18n/context";
 
 export function AuthPage({ register = false }: { register?: boolean }) {
+  const { t } = useI18n();
   const [values, setValues] = useState<Registration>({
     email: "",
     password: "",
@@ -115,10 +117,10 @@ export function AuthPage({ register = false }: { register?: boolean }) {
             }
             placeholder={
               name === "email"
-                ? "name@example.com"
+                ? t("auth.emailPlaceholder")
                 : name === "fullName"
-                  ? "اسمك كما تفضّل أن نناديك"
-                  : "••••••••"
+                  ? t("auth.namePlaceholder")
+                  : t("auth.passwordPlaceholder")
             }
             disabled={busy}
           />
@@ -126,7 +128,9 @@ export function AuthPage({ register = false }: { register?: boolean }) {
             <button
               type="button"
               className="password-toggle"
-              aria-label={visible ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+              aria-label={t(
+                visible ? "auth.hidePassword" : "auth.showPassword",
+              )}
               aria-pressed={visible}
               onClick={() => setVisible((v) => !v)}
               disabled={busy}
@@ -137,13 +141,12 @@ export function AuthPage({ register = false }: { register?: boolean }) {
         </div>
         {name === "password" && register && (
           <p className="field-hint" id="password-hint">
-            8 أحرف على الأقل، وبحد أقصى 72 بايت. لا تُحذف المسافات من كلمة
-            المرور.
+            {t("auth.passwordHint")}
           </p>
         )}
         {invalid && (
           <p className="field-error" id={`${name}-error`} role="alert">
-            {invalid}
+            {t(invalid)}
           </p>
         )}
       </div>
@@ -152,32 +155,30 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   return (
     <section className="auth-card" aria-labelledby="auth-title">
       <span className="section-tag">
-        {register ? "بداية جديدة" : "أهلًا بعودتك"}
+        {t(register ? "auth.registerTag" : "auth.loginTag")}
       </span>
       <h2 id="auth-title">
-        {register ? "مساحة لطفلك، تبدأ معك." : "سعيدون بوجودك هنا."}
+        {t(register ? "auth.registerTitle" : "auth.loginTitle")}
       </h2>
       <p className="form-intro">
-        {register
-          ? "أنشئ حساب ولي أمر لتبدأ رحلتك مع ناطق."
-          : "سجّل الدخول إلى حسابك في ناطق، ولنكمل معًا."}
+        {t(register ? "auth.registerDescription" : "auth.loginDescription")}
       </p>
-      <div className="auth-tabs" aria-label="خيارات الحساب">
+      <div className="auth-tabs" aria-label={t("auth.options")}>
         <Link to="/login" aria-current={!register ? "page" : undefined}>
-          تسجيل الدخول
+          {t("auth.login")}
         </Link>
         <Link to="/register" aria-current={register ? "page" : undefined}>
-          إنشاء حساب
+          {t("auth.register")}
         </Link>
       </div>
       {!register && location.state?.registered && (
         <p className="alert success-alert" role="status">
-          تم إنشاء حسابك بنجاح. يمكنك الآن تسجيل الدخول.
+          {t("auth.registered")}
         </p>
       )}
       {session.notice && (
         <p className="alert info-alert" role="status">
-          {session.notice}
+          {t(session.notice)}
         </p>
       )}
       <ErrorAlert error={failure} context={register ? "register" : "login"} />
@@ -187,11 +188,11 @@ export function AuthPage({ register = false }: { register?: boolean }) {
         noValidate
         aria-busy={busy}
       >
-        {register && field("fullName", "الاسم الكامل", "text", "name")}
-        {field("email", "البريد الإلكتروني", "email", "email")}
+        {register && field("fullName", t("auth.fullName"), "text", "name")}
+        {field("email", t("auth.email"), "email", "email")}
         {field(
           "password",
-          "كلمة المرور",
+          t("auth.password"),
           "password",
           register ? "new-password" : "current-password",
         )}
@@ -199,23 +200,25 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           {busy ? (
             <>
               <span className="spinner" aria-hidden="true" />{" "}
-              {register ? "جارٍ إنشاء الحساب…" : "جارٍ تسجيل الدخول…"}
+              {t(register ? "auth.creating" : "auth.signingIn")}
             </>
           ) : (
             <>
-              {register ? "إنشاء حساب ولي أمر" : "تسجيل الدخول"}
-              <span aria-hidden="true">←</span>
+              {t(register ? "auth.createParent" : "auth.login")}
+              <span className="directional-arrow" aria-hidden="true">
+                ←
+              </span>
             </>
           )}
         </button>
         <p className="form-status" role="status">
-          {busy ? "يرجى الانتظار حتى تكتمل العملية." : ""}
+          {busy ? t("auth.wait") : ""}
         </p>
       </form>
       <p className="switch-copy">
-        {register ? "لديك حساب بالفعل؟" : "هذه زيارتك الأولى؟"}{" "}
+        {t(register ? "auth.already" : "auth.firstVisit")}{" "}
         <Link to={register ? "/login" : "/register"}>
-          {register ? "سجّل الدخول" : "أنشئ حساب ولي أمر"}
+          {t(register ? "auth.signInLink" : "auth.createLink")}
         </Link>
       </p>
       <div className="session-note">
@@ -233,9 +236,9 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           <path d="M10 13v3" />
         </svg>
         <p>
-          جلستك مؤقتة في هذه النافذة.
+          {t("auth.temporary")}
           <br />
-          تحديث الصفحة يتطلّب تسجيل الدخول مجددًا.
+          {t("auth.reload")}
         </p>
       </div>
     </section>
