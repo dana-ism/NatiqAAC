@@ -1,6 +1,26 @@
 import type { Messages } from "./ar";
 
 export const en = {
+  "admin.title": "Administration overview",
+  "admin.portal": "Admin portal",
+  "admin.navigation": "Admin navigation",
+  "admin.workspace": "Workspace",
+  "admin.overview": "Overview",
+  "admin.scope":
+    "Administration starts here. Approved tools will be added as they are completed.",
+  "admin.intro":
+    "Welcome to your Natiq workspace. A clear, secure starting point for platform administration.",
+  "admin.unavailable": "Unable to load the overview",
+  "admin.currentAccount": "Your current account",
+  "admin.accountTitle": "Platform administrator",
+  "admin.accessVerified": "Admin access verified",
+  "admin.privacyTitle": "Privacy comes first",
+  "admin.privacy":
+    "This workspace is for platform administration. It does not display children's information, learning records, photos or recordings.",
+  "admin.foundationTitle": "Ready for the next steps",
+  "admin.foundation":
+    "Admin invitations, account and content management, and audit logging are planned features. They are not available yet.",
+  "admin.sessionTitle": "A temporary, secure session",
   "brand.name": "Natiq",
   "brand.caption": "A space to communicate",
   "brand.login": "Natiq, sign-in page",

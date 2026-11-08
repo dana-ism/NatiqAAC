@@ -19,6 +19,7 @@ NatiqAAC is a mobile application designed to support communication and language 
 
 - `frontend/` — Mobile application.
 - `backend/` — Backend APIs and application logic.
+- `web/` — React authentication and Admin Portal V1; see [Admin documentation](docs/admin.md).
 - `docs/` — Project documentation.
 
 ## Project Status

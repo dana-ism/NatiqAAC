@@ -125,4 +125,7 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 ## NatiqAAC Authentication
 
+Admin Portal V1 adds a protected overview and a manual local first-Admin command.
+Read [Admin authorization, bootstrap and testing](../docs/admin.md) before provisioning.
+
 See [Authentication API, security policy and isolated testing](../docs/authentication.md). Use `.env.example` for runtime variable names and `.env.test.example` for isolated local test placeholders. Integration/E2E tests must never use the existing development PostgreSQL or Redis services. Successful `POST /auth/login` returns HTTP 200.

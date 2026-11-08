@@ -32,6 +32,6 @@ The system will use a client-server architecture.
 
 ## 5. Future Development
 
-The project will start with the mobile application. A web application may be added later, depending on the available time and project requirements.
+The Flutter mobile application remains part of the approved architecture. A React/TypeScript web client now implements authentication, Arabic/English localization and the approved Admin Portal V1. It calls the same NestJS modular monolith; it has no database or direct FastAPI access. See [Admin architecture and security](admin.md) and [Authentication](authentication.md).
 
 The exact AI features, models, and data-retention policies will be decided after consulting speech-language specialists and reviewing the project requirements.

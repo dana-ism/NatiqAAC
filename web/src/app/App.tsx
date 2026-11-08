@@ -7,8 +7,9 @@ import { Layout } from "../shared/Layout";
 import { ErrorAlert, Loading } from "../shared/Feedback";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/context";
+import { AdminPage } from "../features/admin/AdminPage";
 
-function ProtectedHome() {
+function ProtectedHome({ admin = false }: { admin?: boolean }) {
   const { t } = useI18n();
   const session = useSession();
   const location = useLocation();
@@ -29,6 +30,10 @@ function ProtectedHome() {
         </button>
       </section>
     );
+  if (admin && session.identity?.role !== "ADMIN")
+    return <Navigate to="/home" replace />;
+  if (admin || session.identity?.role === "ADMIN")
+    return admin ? <AdminPage /> : <Navigate to="/admin" replace />;
   return <HomePage />;
 }
 
@@ -47,11 +52,18 @@ function AppContent() {
   const welcome =
     location.pathname === "/home" && session.status === "authenticated";
   useEffect(() => {
-    document.title = `${t(location.pathname === "/register" ? "auth.register" : location.pathname === "/home" ? "title.home" : "auth.login")} | ${t("brand.name")}`;
+    document.title = `${t(location.pathname === "/admin" ? "admin.title" : location.pathname === "/register" ? "auth.register" : location.pathname === "/home" ? "title.home" : "auth.login")} | ${t("brand.name")}`;
   }, [location.pathname, t]);
   useEffect(() => {
     document.getElementById("main")?.focus();
   }, [location.pathname]);
+  if (
+    location.pathname === "/admin" &&
+    session.status === "authenticated" &&
+    session.identity?.role === "ADMIN"
+  ) {
+    return <ProtectedHome admin />;
+  }
   return (
     <Layout
       welcome={welcome}
@@ -64,6 +76,7 @@ function AppContent() {
           element={<AuthPage key="register" register />}
         />
         <Route path="/home" element={<ProtectedHome />} />
+        <Route path="/admin" element={<ProtectedHome admin />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Layout>
