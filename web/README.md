@@ -1,6 +1,6 @@
 # NatiqAAC Web — Authentication
 
-React + TypeScript + Vite client, created alongside the planned Flutter client in `frontend/`. The approved scope is parent registration, login, current identity, protected home and local sign-out. No child profiles, dashboards, specialist registration, refresh tokens or new authentication endpoints are implemented.
+React + TypeScript + Vite client, created alongside the planned Flutter client in `frontend/`. Implemented scope includes parent registration, login, current identity, protected home, local sign-out and Admin Portal V1 at `/admin`. See [Admin architecture, API and verification](../docs/admin.md). No child profiles, specialist registration, refresh tokens or management modules are implemented.
 
 ## Start locally
 

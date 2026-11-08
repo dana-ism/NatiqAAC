@@ -10,6 +10,11 @@ export type Session = {
   login: (values: Credentials, signal?: AbortSignal) => Promise<boolean>;
   retry: () => Promise<void>;
   signOut: () => void;
+  authenticatedGet: <T>(
+    path: string,
+    validate: (body: unknown) => body is T,
+    signal?: AbortSignal,
+  ) => Promise<T>;
 };
 export const SessionContext = createContext<Session | null>(null);
 export function useSession(): Session {

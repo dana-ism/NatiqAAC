@@ -12,6 +12,8 @@ import { ThrottlerModule, ThrottlerStorageService } from '@nestjs/throttler';
 import { hash } from 'bcrypt';
 import request from 'supertest';
 import { AuthController } from '../src/auth/auth.controller';
+import { AdminController } from '../src/admin/admin.controller';
+import { RolesGuard } from '../src/auth/guards/roles.guard';
 import { AuthService } from '../src/auth/auth.service';
 import { JwtStrategy } from '../src/auth/strategies/jwt.strategy';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
@@ -88,11 +90,12 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
           storage: new ThrottlerStorageService(),
         }),
       ],
-      controllers: [AuthController],
+      controllers: [AuthController, AdminController],
       providers: [
         AuthService,
         JwtStrategy,
         JwtAuthGuard,
+        RolesGuard,
         {
           provide: ConfigService,
           useValue: new ConfigService({ JWT_SECRET: secret }),
@@ -117,6 +120,60 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
       role: 'PARENT',
       ...overrides,
     });
+
+  it('authorizes Admin with the current database role, not stale JWT claims', async () => {
+    user.role = 'ADMIN';
+    const token = meToken(jwt);
+    const response = await request(app.getHttpServer())
+      .get('/admin/overview')
+      .auth(token, { type: 'bearer' })
+      .expect(200);
+    expect(response.body).toEqual({
+      account: { email: user.email, role: 'ADMIN' },
+    });
+    user.role = 'PARENT';
+    await request(app.getHttpServer())
+      .get('/admin/overview')
+      .auth(token, { type: 'bearer' })
+      .expect(403);
+  });
+  it.each(['PARENT', 'SPECIALIST'])(
+    'rejects current %s despite an ADMIN token',
+    async (role) => {
+      user.role = role;
+      await request(app.getHttpServer())
+        .get('/admin/overview')
+        .auth(meToken(jwt, { role: 'ADMIN' }), { type: 'bearer' })
+        .expect(403);
+    },
+  );
+  it.each(['PENDING', 'SUSPENDED'])('rejects %s Admin', async (status) => {
+    user.role = 'ADMIN';
+    user.status = status;
+    await request(app.getHttpServer())
+      .get('/admin/overview')
+      .auth(meToken(jwt, { role: 'ADMIN' }), { type: 'bearer' })
+      .expect(401);
+  });
+  it('rejects missing, invalid and deleted identities and preserves persistence failures', async () => {
+    await request(app.getHttpServer()).get('/admin/overview').expect(401);
+    await request(app.getHttpServer())
+      .get('/admin/overview')
+      .auth('invalid', { type: 'bearer' })
+      .expect(401);
+    prisma.user.findUnique.mockResolvedValueOnce(null);
+    await request(app.getHttpServer())
+      .get('/admin/overview')
+      .auth(meToken(jwt), { type: 'bearer' })
+      .expect(401);
+    prisma.user.findUnique.mockRejectedValueOnce(
+      new ServiceUnavailableException(),
+    );
+    await request(app.getHttpServer())
+      .get('/admin/overview')
+      .auth(meToken(jwt), { type: 'bearer' })
+      .expect(503);
+  });
 
   it('wires the production modules and fails closed in the actual Redis throttler path', async () => {
     // Override infrastructure providers BEFORE compilation; never construct real clients.
@@ -158,6 +215,12 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
         .get('/auth/me')
         .auth(login.body.access_token, { type: 'bearer' })
         .expect(200);
+      user.role = 'ADMIN';
+      await request(productionApp.getHttpServer())
+        .get('/admin/overview')
+        .auth(login.body.access_token, { type: 'bearer' })
+        .expect(200);
+      user.role = 'PARENT';
       securityClient.evalSha.mockRejectedValue(
         Object.assign(new Error('synthetic transport failure'), {
           code: 'ECONNRESET',

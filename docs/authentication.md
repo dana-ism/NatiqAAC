@@ -8,6 +8,10 @@ No refresh tokens, logout, token revocation, session store, specialist onboardin
 
 ## API contract
 
+The approved Admin V1 adds `GET /admin/overview` behind the existing JWT guard
+and a current-database-role guard. Existing authentication contracts are preserved.
+See [Admin authorization, bootstrap and limitations](admin.md).
+
 JSON bodies are validated using the same global ValidationPipe in application and HTTP tests. Unknown fields are rejected. Passwords are never trimmed, normalized or silently truncated.
 
 | Endpoint            | Authentication                              | Success     |

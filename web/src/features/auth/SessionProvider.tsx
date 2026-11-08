@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ApiError } from "../../shared/api";
+import { ApiError, request } from "../../shared/api";
 import { authApi } from "./api";
 import { SessionContext, type Session } from "./session-context";
 import type { Credentials, Identity } from "./types";
@@ -139,6 +139,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         login,
         retry,
         signOut: () => clear("session.signedOut"),
+        authenticatedGet: async <T,>(
+          path: string,
+          validate: (body: unknown) => body is T,
+          signal?: AbortSignal,
+        ) => {
+          const candidate = token.current;
+          const run = generation.current;
+          if (!candidate || expiresAt(candidate) <= Date.now()) {
+            clear("session.expired");
+            throw new ApiError(401);
+          }
+          try {
+            const result = await request(path, 200, validate, {
+              token: candidate,
+              signal,
+            });
+            if (run !== generation.current) throw new ApiError(401);
+            return result;
+          } catch (error) {
+            if (
+              run === generation.current &&
+              error instanceof ApiError &&
+              [401, 403].includes(error.status)
+            )
+              clear("error.session");
+            throw error;
+          }
+        },
       }}
     >
       {children}

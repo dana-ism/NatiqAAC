@@ -1,4 +1,24 @@
 export const ar = {
+  "admin.title": "نظرة عامة على الإدارة",
+  "admin.portal": "بوابة الإدارة",
+  "admin.navigation": "التنقل الإداري",
+  "admin.workspace": "مساحة العمل",
+  "admin.overview": "نظرة عامة",
+  "admin.scope":
+    "تبدأ الإدارة هنا. ستُضاف الأدوات المعتمدة تدريجيًا عند اكتمالها.",
+  "admin.intro":
+    "مرحبًا بك في مساحة إدارة ناطق. بداية واضحة وآمنة لإدارة المنصة.",
+  "admin.unavailable": "تعذّر تحميل النظرة العامة",
+  "admin.currentAccount": "حسابك الحالي",
+  "admin.accountTitle": "مسؤول المنصة",
+  "admin.accessVerified": "تم التحقق من صلاحية الإدارة",
+  "admin.privacyTitle": "الخصوصية أولًا",
+  "admin.privacy":
+    "هذه المساحة مخصصة لإدارة المنصة. لا تعرض معلومات الأطفال أو سجلات التعلّم أو الصور والتسجيلات.",
+  "admin.foundationTitle": "أساس جاهز للخطوات القادمة",
+  "admin.foundation":
+    "دعوات المسؤولين وإدارة الحسابات والمحتوى وسجل التدقيق ميزات مخطط لها، ولم تُفعّل بعد.",
+  "admin.sessionTitle": "جلسة مؤقتة وآمنة",
   "brand.name": "ناطق",
   "brand.caption": "مساحة للتواصل",
   "brand.login": "ناطق، صفحة الدخول",
