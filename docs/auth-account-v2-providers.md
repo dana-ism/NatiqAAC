@@ -10,8 +10,8 @@ Google, Facebook, transaction transport, account completion and callback handler
 have automated tests with mocked providers/Redis. These tests do not prove that a
 real provider app is configured or that real login works. No real provider login,
 sender authorization or real message delivery was performed during this work.
-The final repository audit found no local `backend/.env` or `web/.env` files;
-example configuration does not establish working provider credentials.
+Local environment files are private and excluded from Git. Their presence does
+not establish configured sender/provider credentials; real smoke tests remain required.
 Keep production release blocked until the applicable owner configuration and
 authorized controlled smoke tests below succeed.
 
@@ -157,9 +157,25 @@ release gates, not claims established by the implementation.
 
 ## Owner checklist: Gmail delivery
 
-The implemented adapter uses the native Gmail REST API and a multipart MIME
-HTML/plain-text message. No SMTP library or Nodemailer dependency was added.
-Gmail API `gmail.send` is narrower than SMTP OAuth's full `mail.google.com` scope.
+The owner requested the simpler Gmail App Password method. Select
+`MAIL_TRANSPORT=gmail-smtp`, set `MAIL_FROM` to the sender's Gmail account and
+store its 16-character App Password in `GMAIL_APP_PASSWORD` in `backend/.env`.
+Keep `MAIL_ENABLED=false` until an authentication check and authorized controlled
+delivery test. App Passwords require Google 2-Step Verification; the ordinary
+account password is not accepted as configuration. Display grouping spaces in an
+App Password are removed. Do not send the credential in chat, Git or logs.
+
+Nodemailer implements SMTP to the fixed `smtp.gmail.com:465` endpoint using TLS
+with certificate verification, bounded connection/socket timeouts and disabled
+debug logging. Plain-text and HTML templates are reused; external-file/URL loading
+is disabled. `GmailMailerService.verifyConnection()` authenticates without sending
+a message or enabling the dispatcher. SMTP errors are sanitized and not blindly
+retried; acceptance by Gmail still does not guarantee inbox delivery.
+
+The existing OAuth Gmail API transport remains available as
+`MAIL_TRANSPORT=gmail-api` (also the backward-compatible default when unset).
+The following OAuth setup is optional when using an App Password. API `gmail.send`
+is narrower than SMTP OAuth's full `mail.google.com` scope.
 
 1. Confirm the owner authorizes sending from the requested mailbox. Enable Gmail
    API in the sender project and configure a sender OAuth client/consent setup.
@@ -198,6 +214,8 @@ without configured sender authorization and explicit controlled-delivery approva
 - [Google web-server authorization setup](https://developers.google.com/identity/protocols/oauth2/web-server)
 - [Gmail send API](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send)
 - [Gmail scope classifications](https://developers.google.com/workspace/gmail/api/auth/scopes)
+- [Google App Password requirements](https://support.google.com/accounts/answer/185833)
+- [Nodemailer SMTP transport](https://nodemailer.com/smtp)
 - [Gmail SMTP OAuth scope requirements](https://developers.google.com/workspace/gmail/imap/xoauth2-protocol)
 - [Google refresh-token lifetime and revocation](https://developers.google.com/identity/protocols/oauth2)
 - [Meta manual Login flow](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/)

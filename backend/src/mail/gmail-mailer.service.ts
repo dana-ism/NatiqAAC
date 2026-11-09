@@ -1,6 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { isEmail } from 'class-validator';
+import { createTransport } from 'nodemailer';
 
 export interface RenderedMail {
   subject: string;
@@ -8,7 +9,7 @@ export interface RenderedMail {
   text: string;
 }
 
-/** Gmail API adapter. Disabled until the owner explicitly enables sending. */
+/** Gmail SMTP/App Password or API adapter; sending remains explicitly opt-in. */
 @Injectable()
 export class GmailMailerService {
   private token?: { value: string; until: number };
@@ -17,7 +18,14 @@ export class GmailMailerService {
   constructor(private readonly config: ConfigService) {}
 
   isConfigured(): boolean {
+    if (this.transport() === 'gmail-smtp') {
+      return (
+        this.config.get<string>('MAIL_ENABLED') === 'true' &&
+        !!this.smtpCredentials()
+      );
+    }
     return (
+      this.transport() === 'gmail-api' &&
       this.config.get<string>('MAIL_ENABLED') === 'true' &&
       [
         'MAIL_FROM',
@@ -37,6 +45,10 @@ export class GmailMailerService {
       /[\r\n]/.test(from + to + mail.subject)
     ) {
       throw this.unavailable();
+    }
+    if (this.transport() === 'gmail-smtp') {
+      await this.sendSmtp(to, mail);
+      return;
     }
     const accessToken = await this.accessToken();
     const boundary = 'natiqaac-alternative';
@@ -78,6 +90,85 @@ export class GmailMailerService {
       // API acceptance is not proof of inbox delivery. Never blindly retry a timeout.
     } catch {
       throw this.unavailable();
+    }
+  }
+
+  private transport(): string {
+    return this.config.get<string>('MAIL_TRANSPORT') ?? 'gmail-api';
+  }
+
+  private smtpCredentials(): { user: string; pass: string } | undefined {
+    const user = this.config.get<string>('MAIL_FROM') ?? '';
+    const pass = (this.config.get<string>('GMAIL_APP_PASSWORD') ?? '').replace(
+      /\s/g,
+      '',
+    );
+    if (
+      !isEmail(user) ||
+      /[\r\n]/.test(user) ||
+      !/^[a-zA-Z0-9]{16}$/.test(pass)
+    )
+      return undefined;
+    return { user, pass };
+  }
+
+  private smtpTransport() {
+    const auth = this.smtpCredentials();
+    if (!auth) throw this.unavailable();
+    return createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth,
+      tls: { rejectUnauthorized: true, minVersion: 'TLSv1.2' },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 10_000,
+      dnsTimeout: 10_000,
+      logger: false,
+      debug: false,
+    });
+  }
+
+  /** Authenticate without sending mail or enabling the background dispatcher. */
+  async verifyConnection(): Promise<void> {
+    if (this.transport() !== 'gmail-smtp') throw this.unavailable();
+    const smtp = this.smtpTransport();
+    try {
+      await smtp.verify();
+    } catch {
+      throw this.unavailable();
+    } finally {
+      smtp.close();
+    }
+  }
+
+  private async sendSmtp(to: string, mail: RenderedMail): Promise<void> {
+    const smtp = this.smtpTransport();
+    const from = this.config.getOrThrow<string>('MAIL_FROM');
+    try {
+      const result = await smtp.sendMail({
+        from: { name: 'NatiqAAC', address: from },
+        to,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        disableFileAccess: true,
+        disableUrlAccess: true,
+      });
+      if (
+        !result.accepted.some(
+          (address) =>
+            typeof address === 'string' &&
+            address.toLowerCase() === to.toLowerCase(),
+        )
+      )
+        throw this.unavailable();
+      // SMTP acceptance is not proof of inbox delivery. Never blindly retry errors.
+    } catch {
+      throw this.unavailable();
+    } finally {
+      smtp.close();
     }
   }
 

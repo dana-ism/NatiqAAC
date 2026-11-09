@@ -6,6 +6,10 @@ it was applied and verified on 2026-11-09. See the
 Earlier references below to deferred Supabase application describe the initial
 code-delivery state. External mail/OAuth/storage configuration remains pending.
 
+Mail setup update: Gmail SMTP with an App Password is now supported at the owner's
+request using `MAIL_TRANSPORT=gmail-smtp`, `MAIL_FROM` and `GMAIL_APP_PASSWORD`.
+OAuth is optional for sending in that mode. See the updated provider guide.
+
 ## Scope, sources and release status
 
 This implementation extends the existing NestJS modular monolith, Prisma-managed
