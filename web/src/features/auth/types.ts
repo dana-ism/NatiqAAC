@@ -11,9 +11,11 @@ export type AuthUser = {
 };
 export type LoginResult = {
   message: string;
-  access_token: string;
   user: AuthUser;
-};
+} & (
+  | { access_token: string; onboarding_token?: never }
+  | { onboarding_token: string; access_token?: never }
+);
 export type RegisterResult = {
   message: string;
   user: AuthUser & { createdAt: string };

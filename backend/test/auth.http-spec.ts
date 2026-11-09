@@ -20,6 +20,9 @@ import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
 import { LoginProtectionService } from '../src/auth/login-protection.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { configureApp } from '../src/configure-app';
+import { AccountLifecycleService } from '../src/auth/account-lifecycle.service';
+import { EmailDomainService } from '../src/auth/email-domain.service';
+import { GmailMailerService } from '../src/mail/gmail-mailer.service';
 
 // Real Nest HTTP, DTOs, bcrypt, Passport, signature verification and rate guard.
 // Only database/Redis operations are replaced; no AppModule or env file is loaded.
@@ -42,8 +45,10 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
     role: string;
     status: string;
     passwordHash: string;
+    legacyAuthExempt: boolean;
   };
   const prisma = {
+    mailDelivery: { upsert: jest.fn(), updateMany: jest.fn() },
     user: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -62,6 +67,7 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     user = {
+      legacyAuthExempt: true,
       id,
       fullName: 'Test Parent',
       email: 'parent@example.com',
@@ -70,6 +76,11 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
       passwordHash,
     };
     prisma.user.findFirst.mockResolvedValue(null);
+    prisma.mailDelivery.upsert.mockResolvedValue({
+      id: 'delivery',
+      status: 'PENDING',
+    });
+    prisma.mailDelivery.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.findMany.mockResolvedValue([user]);
     prisma.user.findUnique.mockImplementation(async () => user);
     prisma.user.create.mockImplementation(async ({ data }) => ({
@@ -93,12 +104,27 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
       controllers: [AuthController, AdminController],
       providers: [
         AuthService,
+        AccountLifecycleService,
+        {
+          provide: EmailDomainService,
+          useValue: {
+            validateForRegistration: async (email: string) =>
+              email.trim().toLowerCase(),
+          },
+        },
+        {
+          provide: GmailMailerService,
+          useValue: { isConfigured: () => false },
+        },
         JwtStrategy,
         JwtAuthGuard,
         RolesGuard,
         {
           provide: ConfigService,
-          useValue: new ConfigService({ JWT_SECRET: secret }),
+          useValue: new ConfigService({
+            JWT_SECRET: secret,
+            PUBLIC_WEB_ORIGIN: 'https://natiq.example',
+          }),
         },
         { provide: PrismaService, useValue: prisma },
         { provide: LoginProtectionService, useValue: protection },

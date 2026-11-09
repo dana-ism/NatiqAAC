@@ -13,6 +13,17 @@ import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AccountLifecycleService } from './account-lifecycle.service';
+import { AccountAccessGuard } from './account-access.guard';
+import { AccountSessionService } from './account-session.service';
+import { AccountController } from './account.controller';
+import { EmailDomainService } from './email-domain.service';
+import { GmailMailerService } from '../mail/gmail-mailer.service';
+import { OAuthProviderService } from './oauth-provider.service';
+import { OAuthFlowService } from './oauth-flow.service';
+import { OAuthAccountsService } from './oauth-accounts.service';
+import { OAuthController } from './oauth.controller';
+import { NotificationDispatchService } from '../mail/notification-dispatch.service';
 
 @Module({
   imports: [
@@ -41,8 +52,30 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, LoginProtectionService],
-  controllers: [AuthController],
-  exports: [JwtAuthGuard, PassportModule],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtAuthGuard,
+    LoginProtectionService,
+    AccountLifecycleService,
+    AccountAccessGuard,
+    AccountSessionService,
+    EmailDomainService,
+    GmailMailerService,
+    OAuthProviderService,
+    OAuthFlowService,
+    OAuthAccountsService,
+    NotificationDispatchService,
+  ],
+  controllers: [AuthController, AccountController, OAuthController],
+  exports: [
+    JwtAuthGuard,
+    PassportModule,
+    JwtModule,
+    AccountAccessGuard,
+    AccountLifecycleService,
+    AccountSessionService,
+    ThrottlerModule,
+  ],
 })
 export class AuthModule {}

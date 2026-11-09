@@ -8,16 +8,119 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid()) @db.Uuid
-  fullName     String        @map("full_name")
-  email        String        @unique
-  passwordHash String        @map("password_hash")
-  role         UserRole      @default(PARENT)
-  status       AccountStatus @default(ACTIVE)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id                    String                 @id @default(uuid()) @db.Uuid
+  fullName              String                 @map("full_name")
+  email                 String                 @unique
+  passwordHash          String?                @map("password_hash")
+  role                  UserRole               @default(PARENT)
+  status                AccountStatus          @default(ACTIVE)
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  emailVerifiedAt       DateTime?              @map("email_verified_at")
+  legacyAuthExempt      Boolean                @default(false) @map("legacy_auth_exempt")
+  locale                String                 @default("ar")
+  identities            AuthIdentity[]
+  verification          EmailVerification?
+  specialistApplication SpecialistApplication?
+  reviews               SpecialistReview[]
+  mailDeliveries        MailDelivery[]
 
   @@map("users")
+}
+
+model AuthIdentity {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  AuthProvider
+  subject   String
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([provider, subject])
+  @@unique([userId, provider])
+  @@map("auth_identities")
+}
+
+model EmailVerification {
+  userId      String    @id @map("user_id") @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  resendAfter DateTime  @map("resend_after")
+
+  @@map("email_verifications")
+}
+
+model SpecialistApplication {
+  id             String             @id @default(uuid()) @db.Uuid
+  userId         String             @unique @map("user_id") @db.Uuid
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization String
+  qualification  String
+  summary        String?
+  status         ApplicationStatus  @default(DRAFT)
+  documentKey    String?            @map("document_key")
+  documentSha256 String?            @map("document_sha256")
+  documentSize   Int?               @map("document_size")
+  submittedAt    DateTime?          @map("submitted_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  reviews        SpecialistReview[]
+
+  @@index([status, submittedAt])
+  @@map("specialist_applications")
+}
+
+model SpecialistReview {
+  id            String                @id @default(uuid()) @db.Uuid
+  applicationId String                @map("application_id") @db.Uuid
+  application   SpecialistApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId    String?               @map("reviewer_id") @db.Uuid
+  reviewer      User?                 @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+  decision      ReviewDecision
+  reason        String?
+  createdAt     DateTime              @default(now()) @map("created_at")
+
+  @@index([applicationId, createdAt])
+  @@map("specialist_reviews")
+}
+
+model MailDelivery {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventKey    String     @unique @map("event_key")
+  kind        String
+  status      MailStatus @default(PENDING)
+  attemptedAt DateTime?  @map("attempted_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@map("mail_deliveries")
+}
+
+enum AuthProvider {
+  GOOGLE
+  FACEBOOK
+}
+
+enum ApplicationStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+enum MailStatus {
+  PENDING
+  ACCEPTED
+  FAILED
+  UNKNOWN
 }
 
 enum UserRole {

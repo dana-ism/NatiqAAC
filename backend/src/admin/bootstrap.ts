@@ -64,6 +64,7 @@ export async function createFirstAdmin(prisma: PrismaClient, input: unknown) {
           email: dto.email,
           passwordHash,
           role: 'ADMIN',
+          legacyAuthExempt: true,
           status: 'ACTIVE',
         },
         select: { id: true },

@@ -11,6 +11,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthRateLimitStorage } from '../src/auth/auth-rate-limit.storage';
 import { configureApp } from '../src/configure-app';
 import { isolatedTestEnvironment } from './test-environment';
+import { EmailDomainService } from '../src/auth/email-domain.service';
+import { GmailMailerService } from '../src/mail/gmail-mailer.service';
+import { normalizeEmail } from '../src/auth/normalize-email';
 
 isolatedTestEnvironment(process.env);
 describe('Authentication E2E on dedicated PostgreSQL and Redis', () => {
@@ -21,6 +24,8 @@ describe('Authentication E2E on dedicated PostgreSQL and Redis', () => {
   const emails: string[] = [];
   const keys = new Set<string>();
   const run = randomUUID();
+  let verificationToken = '';
+  const previousOrigin = process.env.PUBLIC_WEB_ORIGIN;
   class ScopedStorage extends AuthRateLimitStorage {
     override increment(
       key: string,
@@ -37,7 +42,20 @@ describe('Authentication E2E on dedicated PostgreSQL and Redis', () => {
     }
   }
   beforeAll(async () => {
+    process.env.PUBLIC_WEB_ORIGIN = 'https://natiq.example';
     const fixture = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(EmailDomainService)
+      .useValue({
+        validateForRegistration: async (email: string) => normalizeEmail(email),
+      })
+      .overrideProvider(GmailMailerService)
+      .useValue({
+        isConfigured: () => true,
+        send: async (_email: string, mail: { text: string }) => {
+          const match = mail.text.match(/#token=([A-Za-z0-9_-]{43})/);
+          if (match) verificationToken = match[1];
+        },
+      })
       .overrideProvider(ThrottlerStorage)
       .useFactory({
         factory: (client: RedisClientType) => new ScopedStorage(client),
@@ -65,6 +83,8 @@ describe('Authentication E2E on dedicated PostgreSQL and Redis', () => {
       if (redis?.isReady && keys.size) await redis.del([...keys]);
     } finally {
       if (app) await app.close();
+      if (previousOrigin === undefined) delete process.env.PUBLIC_WEB_ORIGIN;
+      else process.env.PUBLIC_WEB_ORIGIN = previousOrigin;
     }
   });
   it('registers, logs in and accesses /auth/me with real dependencies', async () => {
@@ -76,6 +96,10 @@ describe('Authentication E2E on dedicated PostgreSQL and Redis', () => {
       .expect(201);
     ids.push(registered.body.user.id);
     expect(registered.body.user).not.toHaveProperty('passwordHash');
+    await request(app.getHttpServer())
+      .post('/auth/email/verify')
+      .send({ token: verificationToken })
+      .expect(200);
     const login = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: email.toUpperCase(), password: 'TestPass123!' })
@@ -106,6 +130,7 @@ describe('Authentication E2E on dedicated PostgreSQL and Redis', () => {
     const user = await prisma.user.create({
       data: {
         fullName: 'Synthetic Legacy',
+        legacyAuthExempt: true,
         email,
         passwordHash: await hash('TestPass123!', 12),
       },

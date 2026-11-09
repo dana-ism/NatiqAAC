@@ -5,15 +5,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ApiError, request } from "../../shared/api";
+import { ApiError, apiBase, request } from "../../shared/api";
 import { authApi } from "./api";
 import { SessionContext, type Session } from "./session-context";
-import type { Credentials, Identity } from "./types";
+import type { Credentials, Identity, LoginResult } from "./types";
+import { messageResult, onboardingResult } from "../account/account.api";
 import { expiresAt } from "./validation";
 import type { MessageKey } from "../../i18n/ar";
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const token = useRef<string | null>(null);
+  const onboarding = useRef(false);
   const generation = useRef(0);
   const active = useRef<AbortController | null>(null);
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -34,6 +36,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     (message: MessageKey | "" = "") => {
       cancelPending();
       token.current = null;
+      onboarding.current = false;
       setIdentity(null);
       setFailure(null);
       setStatus("anonymous");
@@ -49,7 +52,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return false;
       }
       try {
-        const current = await authApi.me(candidate, signal);
+        const current = onboarding.current
+          ? await request("/auth/onboarding/me", 200, onboardingResult, {
+              token: candidate,
+              signal,
+            })
+          : await authApi.me(candidate, signal);
         if (run !== generation.current) return false;
         if (expiresAt(candidate) <= Date.now()) {
           clear("session.expired");
@@ -57,7 +65,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         setIdentity(current);
         setFailure(null);
-        setStatus("authenticated");
+        setStatus(onboarding.current ? "onboarding" : "authenticated");
         return true;
       } catch (error) {
         if (run !== generation.current) return false;
@@ -78,8 +86,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [clear],
   );
 
-  const login = useCallback(
-    async (values: Credentials, signal?: AbortSignal) => {
+  const adoptSession = useCallback(
+    async (result: LoginResult, signal?: AbortSignal) => {
       active.current?.abort();
       const controller = new AbortController();
       active.current = controller;
@@ -87,12 +95,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const requestSignal = signal
         ? AbortSignal.any([signal, controller.signal])
         : controller.signal;
-      const result = await authApi.login(values, requestSignal);
       if (run !== generation.current || requestSignal.aborted) return false;
-      const expiry = expiresAt(result.access_token);
+      const candidate = result.access_token ?? result.onboarding_token;
+      const expiry = expiresAt(candidate);
       if (expiry <= Date.now() || expiry - Date.now() > 24 * 60 * 60 * 1000)
         throw new ApiError(200, "contract");
-      token.current = result.access_token;
+      token.current = candidate;
+      onboarding.current = !!result.onboarding_token;
       setNotice("");
       setIdentity(null);
       setStatus("checking");
@@ -101,10 +110,88 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         () => clear("session.expired"),
         expiry - Date.now(),
       );
-      return verify(result.access_token, run, requestSignal);
+      return verify(candidate, run, requestSignal);
     },
     [clear, verify],
   );
+
+  const login = useCallback(
+    async (values: Credentials, signal?: AbortSignal) => {
+      const run = ++generation.current;
+      const result = await authApi.login(values, signal);
+      if (run !== generation.current || signal?.aborted) return false;
+      return adoptSession(result, signal);
+    },
+    [adoptSession],
+  );
+
+  const privateRequest = async <T,>(
+    path: string,
+    validate: (body: unknown) => body is T,
+    body?: unknown,
+    signal?: AbortSignal,
+  ): Promise<T> => {
+    const candidate = token.current;
+    const run = generation.current;
+    if (!candidate || expiresAt(candidate) <= Date.now()) {
+      clear("session.expired");
+      throw new ApiError(401);
+    }
+    try {
+      const result = await request(path, 200, validate, {
+        token: candidate,
+        body,
+        signal,
+      });
+      if (run !== generation.current) throw new ApiError(401);
+      return result;
+    } catch (error) {
+      if (
+        run === generation.current &&
+        error instanceof ApiError &&
+        (error.status === 401 || (error.status === 403 && !onboarding.current))
+      )
+        clear("error.session");
+      throw error;
+    }
+  };
+
+  const documentRequest = async (
+    path: string,
+    form?: FormData,
+  ): Promise<Response> => {
+    const candidate = token.current;
+    const run = generation.current;
+    if (!candidate || expiresAt(candidate) <= Date.now()) {
+      clear("session.expired");
+      throw new ApiError(401);
+    }
+    let response: Response;
+    try {
+      response = await fetch(apiBase() + path, {
+        method: form ? "POST" : "GET",
+        body: form,
+        headers: { Authorization: `Bearer ${candidate}` },
+        credentials: "omit",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+        redirect: "error",
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch {
+      throw new ApiError(0, "network");
+    }
+    if (run !== generation.current) throw new ApiError(401);
+    if (!response.ok) {
+      if (
+        response.status === 401 ||
+        (response.status === 403 && !onboarding.current)
+      )
+        clear("error.session");
+      throw new ApiError(response.status);
+    }
+    return response;
+  };
 
   const retry = useCallback(async () => {
     const candidate = token.current;
@@ -137,35 +224,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         notice,
         failure,
         login,
+        adoptSession,
         retry,
         signOut: () => clear("session.signedOut"),
-        authenticatedGet: async <T,>(
-          path: string,
-          validate: (body: unknown) => body is T,
-          signal?: AbortSignal,
-        ) => {
-          const candidate = token.current;
+        authenticatedGet: (path, validate, signal) =>
+          privateRequest(path, validate, undefined, signal),
+        authenticatedPost: (path, body, validate) =>
+          privateRequest(path, validate, body),
+        uploadDocument: async (form) => {
           const run = generation.current;
-          if (!candidate || expiresAt(candidate) <= Date.now()) {
-            clear("session.expired");
-            throw new ApiError(401);
-          }
-          try {
-            const result = await request(path, 200, validate, {
-              token: candidate,
-              signal,
-            });
-            if (run !== generation.current) throw new ApiError(401);
-            return result;
-          } catch (error) {
-            if (
-              run === generation.current &&
-              error instanceof ApiError &&
-              [401, 403].includes(error.status)
-            )
-              clear("error.session");
-            throw error;
-          }
+          const response = await documentRequest(
+            "/specialist/application/document",
+            form,
+          );
+          const body: unknown = await response.json();
+          if (run !== generation.current) throw new ApiError(401);
+          if (!messageResult(body)) throw new ApiError(200, "contract");
+          return body;
+        },
+        downloadDocument: async (path) => {
+          const run = generation.current;
+          const response = await documentRequest(path);
+          if (
+            !response.headers.get("Content-Type")?.startsWith("application/pdf")
+          )
+            throw new ApiError(200, "contract");
+          const blob = await response.blob();
+          if (run !== generation.current) throw new ApiError(401);
+          if (blob.size > 5 * 1024 * 1024) throw new ApiError(200, "contract");
+          return blob;
         },
       }}
     >

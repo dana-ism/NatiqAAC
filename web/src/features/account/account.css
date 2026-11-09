@@ -1,0 +1,58 @@
+.account-card {
+  max-width: 760px;
+}
+.account-card h2 {
+  margin-bottom: 20px;
+}
+.account-card h3 {
+  margin-block: 20px 12px;
+}
+.account-options {
+  display: grid;
+  gap: 16px;
+  margin-block: 24px;
+}
+.account-card .primary-button {
+  margin-block: 12px;
+  text-align: center;
+  text-decoration: none;
+}
+.account-card textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 112px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font: inherit;
+  background: var(--white);
+  color: var(--ink);
+}
+.account-card input[type="file"] {
+  display: block;
+  max-width: 100%;
+  margin-block: 16px;
+}
+.account-card dl {
+  margin-block: 20px;
+}
+.account-card dt {
+  font-weight: 700;
+  margin-block-start: 12px;
+}
+.account-card dd {
+  margin-inline: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.account-application-list {
+  padding: 0;
+  list-style: none;
+}
+.account-application-list li {
+  padding-block: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.account-card p {
+  overflow-wrap: anywhere;
+}

@@ -114,8 +114,13 @@ describe("typed Arabic/English presentation", () => {
   });
   it("translates existing validation errors immediately in both directions", async () => {
     mount("/register");
-    fireEvent.click(
-      screen.getByRole("button", { name: ar["auth.createParent"] }),
+    await userEvent.click(
+      screen.getByRole("link", { name: ar["account.parent"] }),
+    );
+    fireEvent.submit(
+      screen
+        .getByRole("button", { name: ar["account.apply"] })
+        .closest("form")!,
     );
     expect(screen.getByText(ar["validation.nameRequired"])).toBeVisible();
     await english();
@@ -130,8 +135,10 @@ describe("typed Arabic/English presentation", () => {
     fireEvent.change(screen.getByLabelText(en["auth.password"]), {
       target: { value: "short" },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: en["auth.createParent"] }),
+    fireEvent.submit(
+      screen
+        .getByRole("button", { name: en["account.apply"] })
+        .closest("form")!,
     );
     expect(screen.getByText(en["validation.emailInvalid"])).toBeVisible();
     expect(screen.getByText(en["validation.passwordShort"])).toBeVisible();
@@ -145,7 +152,13 @@ describe("typed Arabic/English presentation", () => {
       screen.getByRole("link", { name: en["auth.register"] }),
     );
     expect(
-      screen.getByRole("heading", { name: en["auth.registerTitle"] }),
+      screen.getByRole("heading", { name: en["account.choose"] }),
+    ).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("link", { name: en["account.parent"] }),
+    );
+    expect(
+      screen.getByRole("heading", { name: en["account.parent"] }),
     ).toBeVisible();
     expect(localStorage.getItem(localeStorageKey)).toBe("en");
     view.unmount();

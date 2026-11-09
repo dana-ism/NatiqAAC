@@ -12,6 +12,10 @@ import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginProtectionService } from './login-protection.service';
 import { AuthService } from './auth.service';
+import { ConfigService } from '@nestjs/config';
+import { AccountLifecycleService } from './account-lifecycle.service';
+import { EmailDomainService } from './email-domain.service';
+import { GmailMailerService } from '../mail/gmail-mailer.service';
 
 jest.mock('bcrypt', () => ({ hash: jest.fn(), compare: jest.fn() }));
 const dto = {
@@ -26,12 +30,14 @@ const user = {
   passwordHash: 'synthetic-hash',
   role: 'PARENT',
   status: 'ACTIVE',
+  legacyAuthExempt: true,
 };
 
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: {
     user: { findFirst: jest.Mock; findMany: jest.Mock; create: jest.Mock };
+    mailDelivery: { upsert: jest.Mock; updateMany: jest.Mock };
   };
   let jwt: { signAsync: jest.Mock };
   let protection: {
@@ -42,6 +48,12 @@ describe('AuthService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     prisma = {
+      mailDelivery: {
+        upsert: jest
+          .fn()
+          .mockResolvedValue({ id: 'delivery', status: 'PENDING' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       user: {
         findFirst: jest.fn().mockResolvedValue(null),
         findMany: jest.fn().mockResolvedValue([user]),
@@ -62,6 +74,15 @@ describe('AuthService', () => {
       prisma as unknown as PrismaService,
       jwt as unknown as JwtService,
       protection as unknown as LoginProtectionService,
+      new AccountLifecycleService(
+        prisma as unknown as PrismaService,
+        {
+          validateForRegistration: async (email: string) =>
+            email.trim().toLowerCase(),
+        } as EmailDomainService,
+        { isConfigured: () => false } as GmailMailerService,
+        new ConfigService({ PUBLIC_WEB_ORIGIN: 'https://natiq.example' }),
+      ),
     );
   });
   it('registers a normalized ordinary parent with explicit safe projection', async () => {
@@ -72,21 +93,21 @@ describe('AuthService', () => {
       select: { id: true },
     });
     expect(prisma.user.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         fullName: 'Test Parent',
         email: 'parent@example.com',
         passwordHash: 'synthetic-hash',
         role: 'PARENT',
         status: 'ACTIVE',
-      },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        role: true,
-        status: true,
-        createdAt: true,
-      },
+        legacyAuthExempt: false,
+        verification: {
+          create: {
+            tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+            expiresAt: expect.any(Date),
+            resendAfter: expect.any(Date),
+          },
+        },
+      }),
     });
   });
   it('rejects a legacy mixed-case duplicate before hashing', async () => {

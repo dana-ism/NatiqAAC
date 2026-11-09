@@ -1,5 +1,10 @@
 # Admin Portal V1
 
+This document describes the V1 baseline. Account Management V2 extends it with
+specialist applications, transactional decisions/audit and private document review;
+see [V2 implementation and migration guide](auth-account-management-v2.md).
+The following V1 statements about no schema/dependency changes refer to V1 only.
+
 ## Scope and architecture
 
 Implemented: ADMIN authorization, a manual first-Admin command, `/admin/overview`,

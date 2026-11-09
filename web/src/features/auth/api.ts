@@ -30,7 +30,10 @@ export const authApi = {
       (v): v is LoginResult =>
         record(v) &&
         typeof v.message === "string" &&
-        typeof v.access_token === "string" &&
+        ((typeof v.access_token === "string" &&
+          v.onboarding_token === undefined) ||
+          (typeof v.onboarding_token === "string" &&
+            v.access_token === undefined)) &&
         user(v.user),
       { body, signal },
     ),

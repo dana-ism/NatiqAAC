@@ -1,6 +1,11 @@
 import type { Messages } from "./ar";
+import { accountEn } from "../features/account/account.messages";
 
 export const en = {
+  ...accountEn,
+  "account.connections": "Connect sign-in methods",
+  "account.connectionsHelp":
+    "Connect Google or Facebook while signed in to your current account. Your account permissions will stay the same.",
   "admin.title": "Administration overview",
   "admin.portal": "Admin portal",
   "admin.navigation": "Admin navigation",

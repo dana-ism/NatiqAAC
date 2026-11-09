@@ -87,7 +87,7 @@ describe('First Admin on isolated PostgreSQL', () => {
       fullName: 'Synthetic Admin',
     });
     expect(user.passwordHash).not.toBe(details(emails[0]).password);
-    expect(await compare(details(emails[0]).password, user.passwordHash)).toBe(
+    expect(await compare(details(emails[0]).password, user.passwordHash!)).toBe(
       true,
     );
     await prisma.user.update({

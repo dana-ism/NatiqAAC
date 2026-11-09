@@ -78,6 +78,9 @@ export function AdminPage() {
             <span aria-hidden="true">▦</span>
             {t("admin.overview")}
           </Link>
+          <Link to="/admin/specialist-applications">
+            {t("account.applications")}
+          </Link>
           <p className="admin-sidebar-note">{t("admin.scope")}</p>
         </nav>
         <p className="admin-sidebar-footer">

@@ -92,6 +92,7 @@ async function main() {
     });
     const password = (details as { password: string }).password;
     const hashVerified =
+      !!user.passwordHash &&
       /^\$2[aby]\$12\$/.test(user.passwordHash) &&
       (await compare(password, user.passwordHash));
     const exactlyOneAdmin =

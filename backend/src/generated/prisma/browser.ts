@@ -22,3 +22,28 @@ export * from './enums.js';
  * 
  */
 export type User = Prisma.UserModel
+/**
+ * Model AuthIdentity
+ * 
+ */
+export type AuthIdentity = Prisma.AuthIdentityModel
+/**
+ * Model EmailVerification
+ * 
+ */
+export type EmailVerification = Prisma.EmailVerificationModel
+/**
+ * Model SpecialistApplication
+ * 
+ */
+export type SpecialistApplication = Prisma.SpecialistApplicationModel
+/**
+ * Model SpecialistReview
+ * 
+ */
+export type SpecialistReview = Prisma.SpecialistReviewModel
+/**
+ * Model MailDelivery
+ * 
+ */
+export type MailDelivery = Prisma.MailDeliveryModel

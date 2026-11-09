@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
@@ -11,10 +10,10 @@ import { randomBytes } from 'node:crypto';
 import { LoginProtectionService } from './login-protection.service';
 import { normalizeEmail } from './normalize-email';
 
-import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { AccountLifecycleService } from './account-lifecycle.service';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +24,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly protection: LoginProtectionService,
+    private readonly accounts: AccountLifecycleService,
   ) {}
 
   private validatePasswordLength(password: string): void {
@@ -34,53 +34,7 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    this.validatePasswordLength(registerDto.password);
-
-    const email = normalizeEmail(registerDto.email);
-    const existingUser = await this.prisma.user.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' } },
-      select: { id: true },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Email is already registered');
-    }
-
-    const passwordHash = await hash(registerDto.password, 12);
-
-    try {
-      const user = await this.prisma.user.create({
-        data: {
-          fullName: registerDto.fullName.trim(),
-          email,
-          passwordHash,
-          role: 'PARENT',
-          status: 'ACTIVE',
-        },
-        select: {
-          id: true,
-          fullName: true,
-          email: true,
-          role: true,
-          status: true,
-          createdAt: true,
-        },
-      });
-
-      return {
-        message: 'Account registered successfully',
-        user,
-      };
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Email is already registered');
-      }
-
-      throw error;
-    }
+    return this.accounts.register(registerDto, 'PARENT');
   }
 
   async login(loginDto: LoginDto) {
@@ -106,7 +60,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const isPasswordValid = await compare(loginDto.password, user.passwordHash);
+    const isPasswordValid = user.passwordHash
+      ? await compare(loginDto.password, user.passwordHash)
+      : await compare(
+          loginDto.password,
+          await (this.dummyHash ??= hash(randomBytes(32).toString('hex'), 12)),
+        ).then(() => false);
 
     if (!isPasswordValid) {
       await this.protection.recordFailure(email);
@@ -118,10 +77,21 @@ export class AuthService {
       throw new ForbiddenException('Account is not active');
     }
 
+    const application =
+      user.role === 'SPECIALIST' && !user.legacyAuthExempt
+        ? await this.prisma.specialistApplication.findUnique({
+            where: { userId: user.id },
+          })
+        : null;
+    const restricted =
+      !user.legacyAuthExempt &&
+      (!user.emailVerifiedAt ||
+        (user.role === 'SPECIALIST' && application?.status !== 'APPROVED'));
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
+      ...(restricted ? { purpose: 'onboarding' } : {}),
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -130,8 +100,10 @@ export class AuthService {
     await this.protection.finalizeSuccess(email);
 
     return {
-      message: 'Login successful',
-      access_token: accessToken,
+      message: restricted ? 'Account completion required' : 'Login successful',
+      ...(restricted
+        ? { onboarding_token: accessToken }
+        : { access_token: accessToken }),
       user: {
         id: user.id,
         fullName: user.fullName,
