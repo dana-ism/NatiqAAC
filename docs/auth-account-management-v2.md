@@ -1,5 +1,11 @@
 # Authentication and account management V2
 
+Operational update: the owner subsequently authorized the Supabase V2 migration;
+it was applied and verified on 2026-11-09. See the
+[migration application report](auth-account-v2-supabase-migration.md).
+Earlier references below to deferred Supabase application describe the initial
+code-delivery state. External mail/OAuth/storage configuration remains pending.
+
 ## Scope, sources and release status
 
 This implementation extends the existing NestJS modular monolith, Prisma-managed
