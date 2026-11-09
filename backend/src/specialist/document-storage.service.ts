@@ -5,11 +5,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'node:crypto';
+import { promisify } from 'node:util';
+import { gzip, gunzip } from 'node:zlib';
 import { isUUID } from 'class-validator';
 
 export const MAX_SPECIALIST_DOCUMENT_BYTES = 5 * 1024 * 1024;
 export const DOCUMENT_STORAGE_TIMEOUT_MS = 10_000;
 const MAX_METADATA_BYTES = 16 * 1024;
+const compress = promisify(gzip);
+const decompress = promisify(gunzip);
 
 interface StorageConfiguration {
   origin: string;
@@ -45,18 +49,25 @@ export class DocumentStorageService {
       );
     }
     // Snapshot validated bytes before the first asynchronous boundary.
-    const body = new Uint8Array(data);
-    const key = `${userId}/${randomUUID()}.pdf`;
-    const sha256 = createHash('sha256').update(body).digest('hex');
+    const snapshot = Buffer.from(data);
+    const sha256 = createHash('sha256').update(snapshot).digest('hex');
     return this.withStorage(async (settings, signal) => {
       await this.assertPrivateBucket(settings, signal);
+      const compressed = await compress(snapshot, { level: 9 });
+      // Already-compressed PDFs can grow with gzip. Store only the smaller form.
+      const useCompression = compressed.length < snapshot.length;
+      const body = new Uint8Array(useCompression ? compressed : snapshot);
+      const key = `${userId}/${randomUUID()}.pdf${useCompression ? '.gz' : ''}`;
+      signal.throwIfAborted();
       const response = await fetch(
         `${settings.origin}/storage/v1/object/${settings.bucket}/${key}`,
         {
           method: 'POST',
           headers: {
             ...this.headers(settings),
-            'Content-Type': 'application/pdf',
+            'Content-Type': useCompression
+              ? 'application/gzip'
+              : 'application/pdf',
             'x-upsert': 'false',
             'Cache-Control': 'no-store',
           },
@@ -68,7 +79,8 @@ export class DocumentStorageService {
       if (!response.ok) throw new Error('Storage upload failed');
       // The generated key is authoritative, never a provider-returned URL/path.
       await response.body?.cancel();
-      return { key, sha256, size: data.length };
+      // Preserve database metadata semantics: original PDF size and digest.
+      return { key, sha256, size: snapshot.length };
     });
   }
 
@@ -88,10 +100,16 @@ export class DocumentStorageService {
         },
       );
       if (!response.ok) throw new Error('Storage download failed');
-      const data = await this.readBounded(
+      const stored = await this.readBounded(
         response,
         MAX_SPECIALIST_DOCUMENT_BYTES,
       );
+      const data = key.endsWith('.pdf.gz')
+        ? await decompress(stored, {
+            maxOutputLength: MAX_SPECIALIST_DOCUMENT_BYTES,
+          })
+        : stored;
+      signal.throwIfAborted();
       if (!this.isPdf(data)) throw new Error('Stored document is not a PDF');
       return data;
     });
@@ -108,11 +126,12 @@ export class DocumentStorageService {
   private isDocumentKey(value: string): boolean {
     if (typeof value !== 'string') return false;
     const parts = value.split('/');
+    const filename = (parts[1] ?? '').replace(/\.gz$/u, '');
     return (
       parts.length === 2 &&
       this.isCanonicalUuid(parts[0]) &&
-      parts[1].endsWith('.pdf') &&
-      isUUID(parts[1].slice(0, -4), '4') &&
+      filename.endsWith('.pdf') &&
+      isUUID(filename.slice(0, -4), '4') &&
       parts[1] === parts[1].toLowerCase()
     );
   }

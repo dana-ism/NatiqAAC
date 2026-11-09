@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import {
   DOCUMENT_STORAGE_TIMEOUT_MS,
   DocumentStorageService,
@@ -89,6 +90,56 @@ describe('Private specialist document storage', () => {
     const second = await service.upload(PDF, OWNER);
     expect(first.key).not.toBe(second.key);
   });
+
+  it('stores compressible PDFs as smaller gzip objects without changing their bytes', async () => {
+    const original = Buffer.from(
+      `%PDF-1.7\n${'synthetic qualification\n'.repeat(2000)}%%EOF\n`,
+    );
+    fetchMock
+      .mockResolvedValueOnce(metadata())
+      .mockResolvedValueOnce(Response.json({}));
+    const result = await service.upload(original, OWNER);
+    const stored = Buffer.from(fetchMock.mock.calls[1][1]?.body as Uint8Array);
+    expect(result.key).toMatch(/\.pdf\.gz$/u);
+    expect(stored.length).toBeLessThan(original.length);
+    expect(gunzipSync(stored)).toEqual(original);
+    expect(result.size).toBe(original.length);
+    expect(result.sha256).toBe(
+      createHash('sha256').update(original).digest('hex'),
+    );
+    expect(fetchMock.mock.calls[1][1]?.headers).toMatchObject({
+      'Content-Type': 'application/gzip',
+    });
+  });
+
+  it('transparently restores compressed documents for existing PDF download callers', async () => {
+    fetchMock
+      .mockResolvedValueOnce(metadata())
+      .mockResolvedValueOnce(documentResponse(gzipSync(PDF)));
+    await expect(service.download(`${KEY}.gz`)).resolves.toEqual(PDF);
+  });
+
+  it('rejects compressed documents expanding beyond the original upload limit', async () => {
+    const expanded = Buffer.alloc(MAX_SPECIALIST_DOCUMENT_BYTES + 1, 65);
+    fetchMock
+      .mockResolvedValueOnce(metadata())
+      .mockResolvedValueOnce(documentResponse(gzipSync(expanded)));
+    await expect(service.download(`${KEY}.gz`)).rejects.toThrow(
+      ServiceUnavailableException,
+    );
+  });
+
+  it.each([Buffer.from('broken gzip'), gzipSync(Buffer.from('not PDF'))])(
+    'rejects corrupt or non-PDF compressed content',
+    async (stored) => {
+      fetchMock
+        .mockResolvedValueOnce(metadata())
+        .mockResolvedValueOnce(documentResponse(stored));
+      await expect(service.download(`${KEY}.gz`)).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    },
+  );
 
   it('uploads the validated snapshot if the caller mutates its buffer while metadata loads', async () => {
     let resolveMetadata!: (value: Response) => void;

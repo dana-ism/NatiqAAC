@@ -237,6 +237,19 @@ bytes), enforced before HTTP buffering and again in the adapter. Header `%PDF-`
 and trailing `%%EOF` checks are superficial PDF validation, not a complete parser,
 sanitizer or malware scan. Private credential access must remain backend-only.
 
+New uploads are losslessly compressed with Node's built-in asynchronous gzip
+(level 9) before storage. The `.pdf.gz` representation is used only when smaller
+than the original; already-compressed PDFs that would grow retain `.pdf` storage.
+Gzip objects use `application/gzip` without HTTP Content-Encoding. Downloads
+transparently decompress them and still return PDF attachments; legacy `.pdf`
+objects remain readable. Both stored input and decompressed output are capped at
+5 MiB, and restored content is checked as PDF. Database document size and SHA-256
+continue to describe the original PDF, so no schema/data migration is required.
+No image downsampling or quality loss is performed; savings depend on PDF content.
+When configuring the private bucket, permit both `application/pdf` and
+`application/gzip` if MIME restrictions are enabled; a PDF-only bucket rejects
+compressed uploads. The bucket object-size limit must allow uploads up to 5 MiB.
+
 Metadata and download streams are bounded, requests reject redirects, and each
 storage operation has a 10-second whole-operation deadline. Ownership comes from
 the database/application service, not a caller-controlled storage path. Downloads
