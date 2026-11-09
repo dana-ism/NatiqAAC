@@ -7,7 +7,7 @@ test.skip(
   process.env.NATIQ_WEB_REAL_API !== "YES",
   "Requires an inspected isolated backend at localhost:3100",
 );
-test("real browser registration, login, current user, reload and local sign-out", async ({
+test("real browser legacy account login, current user, reload and local sign-out", async ({
   page,
 }) => {
   test.skip(
@@ -29,24 +29,22 @@ test("real browser registration, login, current user, reload and local sign-out"
   const password = randomUUID() + "!";
   let id: string | undefined;
   try {
-    await page.goto("/register");
-    await page.getByLabel("الاسم الكامل").fill("Synthetic Web Parent");
-    await page.getByLabel("البريد الإلكتروني").fill(email);
-    await page.getByLabel("كلمة المرور", { exact: true }).fill(password);
-    const registration = page.waitForResponse(
-      (r) =>
-        r.url() === "http://localhost:3100/auth/register" &&
-        r.request().method() === "POST",
-    );
-    await page.getByRole("button", { name: /^إنشاء حساب ولي أمر/ }).click();
-    const response = await registration;
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-    id = body.user.id;
-    expect(body.user).not.toHaveProperty("passwordHash");
-    await expect(
-      page.getByText("تم إنشاء حسابك بنجاح. يمكنك الآن تسجيل الدخول."),
-    ).toBeVisible();
+    // Synthetic legacy fixture only; V2 registration/verification is covered by
+    // real PostgreSQL/Redis HTTP tests and the controlled-mail browser suite.
+    const { hash } = backendRequire("bcrypt");
+    const created = await prisma.user.create({
+      data: {
+        fullName: "Synthetic Web Parent",
+        email,
+        passwordHash: await hash(password, 12),
+        role: "PARENT",
+        status: "ACTIVE",
+        legacyAuthExempt: true,
+      },
+      select: { id: true },
+    });
+    id = created.id;
+    await page.goto("/login");
     // This error must remain readable across origins instead of becoming a fetch error.
     await page.getByLabel("البريد الإلكتروني").fill(email);
     await page.getByLabel("كلمة المرور", { exact: true }).fill(randomUUID());

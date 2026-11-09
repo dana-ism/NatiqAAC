@@ -31,6 +31,7 @@ describe('JwtStrategy runtime claims and current database authority', () => {
     { ...claims(), exp: 1 },
     { ...claims(), email: 5 },
     { ...claims(), role: { toString: {} } },
+    { ...claims(), purpose: 'onboarding' },
   ])('rejects invalid claims before Prisma', async (payload) => {
     await expect(strategy.validate(payload)).rejects.toThrow(
       UnauthorizedException,
@@ -52,6 +53,7 @@ describe('JwtStrategy runtime claims and current database authority', () => {
       email: 'updated@example.com',
       role: 'SPECIALIST',
       status: 'ACTIVE',
+      legacyAuthExempt: true,
     });
     await expect(strategy.validate(claims())).resolves.toEqual({
       userId: id,

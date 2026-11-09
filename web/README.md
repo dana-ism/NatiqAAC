@@ -1,6 +1,12 @@
 # NatiqAAC Web — Authentication
 
-React + TypeScript + Vite client, created alongside the planned Flutter client in `frontend/`. Implemented scope includes parent registration, login, current identity, protected home, local sign-out and Admin Portal V1 at `/admin`. See [Admin architecture, API and verification](../docs/admin.md). No child profiles, specialist registration, refresh tokens or management modules are implemented.
+React + TypeScript + Vite client alongside the planned Flutter client. V2 adds
+account-type selection, separate Parent/Specialist signup, verification/resend,
+restricted onboarding/application status, social login/linking and Admin specialist
+review. Read [V2 setup, routes, contracts and limitations](../docs/auth-account-management-v2.md)
+and [provider configuration](../docs/auth-account-v2-providers.md).
+Existing in-memory sessions, Arabic/English and Admin Portal are preserved.
+No child profiles, password recovery or refresh tokens are implemented.
 
 ## Start locally
 
@@ -80,4 +86,10 @@ The real API test is skipped by default. It requires operator inspection of the 
 
 While a developer's Vite is already using 5173, set `NATIQ_WEB_TEST_ORIGIN=http://127.0.0.1:5183` for a separate Playwright-owned Vite instance. Add that exact origin only to the isolated backend's CORS environment; this test-only override never changes the developer's `.env.local`. The real test also verifies readable HTTP 401/429, unauthenticated routes and cleanup of only its synthetic account-lock keys. HTTP 503 and transport failure rendering are tested with controlled browser responses/aborts, without interrupting Redis. For explicit pre-fix reproduction only, start the isolated backend without WEB_CORS_ORIGINS and set NATIQ_WEB_EXPECT_CORS_BLOCK=YES; the test asserts the real OPTIONS 404 and the UI connection message. Normal test runs skip this reproduction case.
 
-Known limits: network/CORS errors are indistinguishable to browser fetch and share a connection message. No password recovery or email verification is offered because no such backend endpoints exist. Production readiness, proxy-aware rate limiting, Redis recovery, CI and hosting remain separate reviews. See `../docs/authentication.md` for backend policies.
+Known limits: network/CORS failures share a connection message. V2 implements
+email verification; live sending/providers/private storage still require owner
+setup. Password recovery remains outside this scope. The opt-in real browser
+smoke seeds a synthetic legacy-exempt account; real V2 registration/verification
+is tested separately in the backend's isolated HTTP integration suite.
+Production readiness, proxy trust, Redis recovery, CI and hosting need their
+documented operational review. See `../docs/authentication.md`.

@@ -13,6 +13,7 @@ import { SessionProvider } from "./SessionProvider";
 import { ApiError, errorMessage, retrySeconds } from "../../shared/api";
 import { validate } from "./validation";
 import { authApi } from "./api";
+import { ar } from "../../i18n/ar";
 
 const identity = {
   userId: "6fbbe1de-542e-409e-bbec-088c6c084416",
@@ -153,27 +154,32 @@ describe("Forms and memory-only authentication with controlled HTTP responses", 
     ).toBeVisible();
     expect(screen.queryByText(identity.email)).not.toBeInTheDocument();
   });
-  it("registers only accepted fields, then asks the new parent to log in", async () => {
+  it("registers only accepted fields, then requires email verification", async () => {
     fetchMock.mockResolvedValue(
       json(
         {
           message: "Account registered successfully",
           user: { ...user, createdAt: new Date().toISOString() },
+          verification: { emailSent: true },
         },
         201,
       ),
     );
-    mount("/register");
+    mount("/register/parent");
     const input = await fill(true);
     await input.click(
-      screen.getByRole("button", { name: /^إنشاء حساب ولي أمر/ }),
+      screen.getByRole("button", { name: ar["account.apply"] }),
     );
     expect(
-      await screen.findByText("تم إنشاء حسابك بنجاح. يمكنك الآن تسجيل الدخول."),
+      await screen.findByRole("heading", { name: ar["account.pending"] }),
     ).toBeVisible();
     expect(
       Object.keys(JSON.parse(fetchMock.mock.calls[0][1].body)).sort(),
-    ).toEqual(["email", "fullName", "password"]);
+    ).toEqual(["email", "fullName", "locale", "password"]);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://localhost:3000/auth/register/parent",
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).locale).toBe("ar");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
   it.each([400, 401, 403, 429, 503, 500])(
@@ -195,10 +201,10 @@ describe("Forms and memory-only authentication with controlled HTTP responses", 
   );
   it("renders duplicate registration feedback", async () => {
     fetchMock.mockResolvedValue(json({}, 409));
-    mount("/register");
+    mount("/register/parent");
     const input = await fill(true);
     await input.click(
-      screen.getByRole("button", { name: /^إنشاء حساب ولي أمر/ }),
+      screen.getByRole("button", { name: ar["account.apply"] }),
     );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "هذا البريد مسجّل بالفعل",

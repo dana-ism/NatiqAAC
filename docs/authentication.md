@@ -4,7 +4,12 @@
 
 Parent registration, password login and protected current-user access are implemented in the NestJS backend. Redis-backed account protection and IP throttling are mandatory for registration/login. Integration against PostgreSQL/Redis must be verified in isolated infrastructure before merge.
 
-No refresh tokens, logout, token revocation, session store, specialist onboarding, child permissions or email verification are included. This document does not authorize changing existing database records.
+Authentication V2 adds email verification, specialist onboarding/review, provider
+identities and restricted onboarding sessions. Read the
+[V2 contracts, migration and security guide](auth-account-management-v2.md) and
+[provider setup](auth-account-v2-providers.md). No refresh tokens, server logout,
+token revocation, persistent browser sessions or child permissions were added.
+Supabase application requires separate migration/environment/backup review.
 
 ## API contract
 
@@ -24,13 +29,19 @@ JSON bodies are validated using the same global ValidationPipe in application an
 
 Request fields: fullName (string, trimmed, nonempty, maximum 100 characters), email (valid email, normalized), password (8-72 characters AND at most 72 UTF-8 bytes).
 
-Response: { message: 'Account registered successfully', user: { id, fullName, email, role, status, createdAt } }. createdAt is serialized as an ISO timestamp. Ordinary registration always creates PARENT/ACTIVE. Clients cannot set role or status. Password/hash are never returned. bcrypt cost is 12.
+V2 keeps `/auth/register` as a Parent alias. Response: `{ message: 'Email verification required', user: { id, fullName, email, role, status, createdAt }, verification: { emailSent } }`. `createdAt` is an ISO timestamp. Parent accounts retain operational ACTIVE status but cannot gain normal access until verification; new accounts have `legacyAuthExempt=false`. Clients cannot set role/status/verification/exemption. Password/hash are never returned; bcrypt cost remains 12. Registration now checks mail-domain routing and requires a configured `PUBLIC_WEB_ORIGIN`. See the V2 guide for the separate Parent/Specialist routes.
 
 ### Login
 
 Request fields: email and password. The same password length constraints apply.
 
 Response: { message: 'Login successful', access_token, user: { id, fullName, email, role, status } }.
+
+Eligible and explicitly exempt legacy accounts retain that response. New accounts
+requiring verification or professional approval instead receive `onboarding_token`
+and `message: 'Account completion required'`, without `access_token`. That token
+is limited to account-completion routes; `/auth/me` rejects it. Flutter callers
+must distinguish these alternatives before treating a login as platform access.
 
 Compatibility change: successful login explicitly returns 200, replacing the previous Nest default of 201. Clients must accept 200. Response field names are preserved.
 
@@ -108,7 +119,7 @@ A random synthetic dummy bcrypt hash is generated lazily and cached for absent/a
 
 ## Environment
 
-Runtime names: DATABASE_URL, DIRECT_URL (Prisma CLI), REDIS_URL, JWT_SECRET, PORT. Examples contain placeholders only. Never commit real environment files.
+Core runtime names: DATABASE_URL, DIRECT_URL (Prisma CLI), REDIS_URL, JWT_SECRET, PORT. V2 adds the public origin, mail, provider and private-storage settings in `.env.example`; see the linked guides. Never commit real environment files.
 
 Optional web integration: WEB_CORS_ORIGINS is a comma-separated list of exact HTTP(S) origins, without paths, wildcards or trailing slashes. Local development uses WEB_CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173 to match both explicit Vite origins; these are different origins even when they reach the same machine. Put this value in the backend runtime environment (the example file is not loaded automatically) and restart NestJS after changing it. When unset, CORS remains disabled: the API can be running while a browser preflight receives 404 without CORS headers. Configured origins may use GET/POST with Authorization and Content-Type; Retry-After is exposed to browser code. Credentials/cookies are not enabled. This is browser access configuration, not an authorization mechanism. Use only trusted HTTPS origins in deployed environments.
 

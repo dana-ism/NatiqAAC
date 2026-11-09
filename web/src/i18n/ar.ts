@@ -1,4 +1,9 @@
+import { accountAr } from "../features/account/account.messages";
 export const ar = {
+  ...accountAr,
+  "account.connections": "ربط طرق تسجيل الدخول",
+  "account.connectionsHelp":
+    "اربط حساب Google أو Facebook بعد تسجيل الدخول إلى حسابك الحالي. لن تتغير صلاحيات حسابك.",
   "admin.title": "نظرة عامة على الإدارة",
   "admin.portal": "بوابة الإدارة",
   "admin.navigation": "التنقل الإداري",

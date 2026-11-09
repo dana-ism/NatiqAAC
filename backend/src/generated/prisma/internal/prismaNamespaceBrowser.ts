@@ -51,7 +51,12 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-  User: 'User'
+  User: 'User',
+  AuthIdentity: 'AuthIdentity',
+  EmailVerification: 'EmailVerification',
+  SpecialistApplication: 'SpecialistApplication',
+  SpecialistReview: 'SpecialistReview',
+  MailDelivery: 'MailDelivery'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -78,10 +83,78 @@ export const UserScalarFieldEnum = {
   role: 'role',
   status: 'status',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  emailVerifiedAt: 'emailVerifiedAt',
+  legacyAuthExempt: 'legacyAuthExempt',
+  locale: 'locale'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const AuthIdentityScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  provider: 'provider',
+  subject: 'subject',
+  createdAt: 'createdAt'
+} as const
+
+export type AuthIdentityScalarFieldEnum = (typeof AuthIdentityScalarFieldEnum)[keyof typeof AuthIdentityScalarFieldEnum]
+
+
+export const EmailVerificationScalarFieldEnum = {
+  userId: 'userId',
+  tokenHash: 'tokenHash',
+  expiresAt: 'expiresAt',
+  consumedAt: 'consumedAt',
+  resendAfter: 'resendAfter'
+} as const
+
+export type EmailVerificationScalarFieldEnum = (typeof EmailVerificationScalarFieldEnum)[keyof typeof EmailVerificationScalarFieldEnum]
+
+
+export const SpecialistApplicationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  specialization: 'specialization',
+  qualification: 'qualification',
+  summary: 'summary',
+  status: 'status',
+  documentKey: 'documentKey',
+  documentSha256: 'documentSha256',
+  documentSize: 'documentSize',
+  submittedAt: 'submittedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SpecialistApplicationScalarFieldEnum = (typeof SpecialistApplicationScalarFieldEnum)[keyof typeof SpecialistApplicationScalarFieldEnum]
+
+
+export const SpecialistReviewScalarFieldEnum = {
+  id: 'id',
+  applicationId: 'applicationId',
+  reviewerId: 'reviewerId',
+  decision: 'decision',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type SpecialistReviewScalarFieldEnum = (typeof SpecialistReviewScalarFieldEnum)[keyof typeof SpecialistReviewScalarFieldEnum]
+
+
+export const MailDeliveryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  eventKey: 'eventKey',
+  kind: 'kind',
+  status: 'status',
+  attemptedAt: 'attemptedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type MailDeliveryScalarFieldEnum = (typeof MailDeliveryScalarFieldEnum)[keyof typeof MailDeliveryScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -98,4 +171,12 @@ export const QueryMode = {
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 

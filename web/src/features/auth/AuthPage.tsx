@@ -7,6 +7,7 @@ import { Eye } from "../../shared/Icons";
 import { ErrorAlert } from "../../shared/Feedback";
 import type { Registration } from "./types";
 import { useI18n } from "../../i18n/context";
+import { SocialButtons } from "../account/SocialButtons";
 
 export function AuthPage({ register = false }: { register?: boolean }) {
   const { t } = useI18n();
@@ -34,6 +35,8 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   }, []);
   if (session.status === "authenticated")
     return <Navigate to="/home" replace />;
+  if (session.status === "onboarding")
+    return <Navigate to="/application-status" replace />;
   const afterLogin =
     typeof location.state?.from === "string" && location.state.from === "/home"
       ? location.state.from
@@ -215,6 +218,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           {busy ? t("auth.wait") : ""}
         </p>
       </form>
+      {!register && <SocialButtons intent="login" />}
       <p className="switch-copy">
         {t(register ? "auth.already" : "auth.firstVisit")}{" "}
         <Link to={register ? "/login" : "/register"}>

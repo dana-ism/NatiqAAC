@@ -66,13 +66,14 @@ test.beforeEach(async ({ page }) => {
           user,
         }),
       });
-    if (path.endsWith("/register"))
+    if (path.endsWith("/register/parent"))
       return route.fulfill({
         status: 201,
         headers,
         body: JSON.stringify({
           message: "Account registered successfully",
           user: { ...user, createdAt: new Date().toISOString() },
+          verification: { emailSent: true },
         }),
       });
     return route.fulfill({
@@ -108,6 +109,9 @@ for (const width of [375, 768, 1440]) {
       fullPage: true,
     });
     await page.getByRole("link", { name: "إنشاء حساب", exact: true }).click();
+    await page
+      .getByRole("link", { name: ar["account.parent"], exact: true })
+      .click();
     await page.getByLabel("الاسم الكامل").fill("Synthetic Parent");
     await page.getByLabel("البريد الإلكتروني").fill("parent@example.com");
     await page.getByLabel("كلمة المرور", { exact: true }).fill("TestPass123!");
@@ -125,9 +129,18 @@ for (const width of [375, 768, 1440]) {
       path: `test-results/register-${width}.png`,
       fullPage: true,
     });
-    await page.getByRole("button", { name: /^إنشاء حساب ولي أمر/ }).click();
+    await page
+      .getByRole("button", { name: ar["account.apply"], exact: true })
+      .click();
     await expect(
-      page.getByText("تم إنشاء حسابك بنجاح. يمكنك الآن تسجيل الدخول."),
+      page.getByRole("heading", { name: ar["account.pending"] }),
+    ).toBeVisible();
+    await page
+      .getByRole("link", { name: ar["auth.signInLink"], exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(
+      page.getByRole("heading", { name: ar["auth.loginTitle"] }),
     ).toBeVisible();
     await page.getByLabel("البريد الإلكتروني").fill("parent@example.com");
     await page.getByLabel("كلمة المرور", { exact: true }).fill("TestPass123!");
@@ -250,8 +263,11 @@ for (const width of [375, 768, 1440]) {
       .getByRole("link", { name: en["auth.register"], exact: true })
       .click();
     await expect(
-      page.getByRole("heading", { name: en["auth.registerTitle"] }),
+      page.getByRole("heading", { name: en["account.choose"] }),
     ).toBeVisible();
+    await page
+      .getByRole("link", { name: en["account.parent"], exact: true })
+      .click();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
@@ -269,9 +285,18 @@ for (const width of [375, 768, 1440]) {
       .getByLabel(en["auth.password"], { exact: true })
       .fill("TestPass123!");
     await page
-      .getByRole("button", { name: en["auth.createParent"], exact: true })
+      .getByRole("button", { name: en["account.apply"], exact: true })
       .click();
-    await expect(page.getByText(en["auth.registered"])).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: en["account.pending"] }),
+    ).toBeVisible();
+    await page
+      .getByRole("link", { name: en["auth.signInLink"], exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(
+      page.getByRole("heading", { name: en["auth.loginTitle"] }),
+    ).toBeVisible();
     await page.getByLabel(en["auth.email"]).fill("parent@example.com");
     await page
       .getByLabel(en["auth.password"], { exact: true })

@@ -32,6 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       typeof claims.email !== 'string' ||
       !isEmail(claims.email) ||
       typeof claims.role !== 'string' ||
+      claims.purpose !== undefined ||
       !['PARENT', 'SPECIALIST', 'ADMIN'].includes(claims.role)
     ) {
       throw new UnauthorizedException('Invalid token');
@@ -43,10 +44,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         email: true,
         role: true,
         status: true,
+        emailVerifiedAt: true,
+        legacyAuthExempt: true,
+        specialistApplication: { select: { status: true } },
       },
     });
 
-    if (!user || user.status !== 'ACTIVE') {
+    if (
+      !user ||
+      user.status !== 'ACTIVE' ||
+      (!user.legacyAuthExempt &&
+        (!user.emailVerifiedAt ||
+          (user.role === 'SPECIALIST' &&
+            user.specialistApplication?.status !== 'APPROVED')))
+    ) {
       throw new UnauthorizedException('Account is not active');
     }
 

@@ -125,6 +125,10 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 ## NatiqAAC Authentication
 
+Account V2 implementation, migration impact, restricted sessions and isolated
+verification are documented in [the V2 guide](../docs/auth-account-management-v2.md).
+Configure external services only through [the owner checklist](../docs/auth-account-v2-providers.md).
+
 Admin Portal V1 adds a protected overview, a manual local first-Admin command and
 a separate explicitly authorized Supabase development bootstrap workflow.
 Read [Admin authorization, bootstrap and testing](../docs/admin.md) before provisioning.

@@ -9,4 +9,9 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/User.js'
+export type * from './models/AuthIdentity.js'
+export type * from './models/EmailVerification.js'
+export type * from './models/SpecialistApplication.js'
+export type * from './models/SpecialistReview.js'
+export type * from './models/MailDelivery.js'
 export type * from './commonInputTypes.js'

@@ -1,5 +1,6 @@
 import { useSession } from "./session-context";
 import { useI18n } from "../../i18n/context";
+import { Link } from "react-router-dom";
 
 export function HomePage() {
   const { t } = useI18n();
@@ -80,6 +81,7 @@ export function HomePage() {
       <p className="local-signout-note" id="logout-hint">
         {t("home.localSignOut")}
       </p>
+      <Link to="/account/connections">{t("account.connections")}</Link>
     </section>
   );
 }
