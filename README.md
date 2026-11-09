@@ -31,7 +31,9 @@ configuration and review; isolated tests do not establish production readiness.
 
 ## Project Status
 
-The project is in the planning and setup stage. The final AI features and technical details will be determined after consulting speech-language specialists.
+Authentication/account management and the web Admin foundation are implemented,
+with the external setup and migration gates documented above. Mobile AAC workflows
+and final AI features remain planned and require specialist consultation.
 
 ## Team
 
