@@ -229,6 +229,8 @@ for (const width of [375, 768, 1440]) {
         } else if (path === "/specialist/application/me") body = application();
         else if (path === "/admin/overview")
           body = { account: { email: user.email, role: user.role } };
+        else if (path === "/admin/specialist-applications/summary")
+          body = { pendingCount: status === "PENDING_REVIEW" ? 1 : 0 };
         else if (path === "/admin/specialist-applications")
           body = { applications: [application()] };
         else if (path.endsWith("/document"))

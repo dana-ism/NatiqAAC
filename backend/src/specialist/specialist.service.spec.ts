@@ -37,7 +37,11 @@ describe('SpecialistService admission and transactional review', () => {
   };
   const prisma = {
     user: { findUnique: jest.fn() },
-    specialistApplication: { findUnique: jest.fn(), updateMany: jest.fn() },
+    specialistApplication: {
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+      count: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const documents = { upload: jest.fn(), download: jest.fn() };
@@ -77,6 +81,26 @@ describe('SpecialistService admission and transactional review', () => {
     });
     documents.download.mockResolvedValue(PDF);
     accounts.notify.mockResolvedValue(true);
+  });
+
+  it.each([0, 7, 140])(
+    'counts every pending review independently of the capped list: %s',
+    async (count) => {
+      prisma.specialistApplication.count.mockResolvedValue(count);
+      await expect(service.summary()).resolves.toEqual({ pendingCount: count });
+      expect(prisma.specialistApplication.count).toHaveBeenCalledWith({
+        where: { status: 'PENDING_REVIEW' },
+      });
+    },
+  );
+
+  it('does not replace a failed count with a misleading zero', async () => {
+    prisma.specialistApplication.count.mockRejectedValue(
+      new Error('Synthetic unavailable database'),
+    );
+    await expect(service.summary()).rejects.toThrow(
+      'Synthetic unavailable database',
+    );
   });
 
   it('locks the active current admin before changing status and writing the audit in one transaction', async () => {

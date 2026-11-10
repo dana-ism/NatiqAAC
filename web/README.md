@@ -1,5 +1,8 @@
 # NatiqAAC Web — Authentication
 
+The Admin workspace now shares its navigation and layout across overview and
+specialist review. See [Admin frontend architecture and local walkthrough](../docs/admin-frontend-experience.md).
+
 React + TypeScript + Vite client alongside the planned Flutter client. V2 adds
 account-type selection, separate Parent/Specialist signup, verification/resend,
 restricted onboarding/application status, social login/linking and Admin specialist

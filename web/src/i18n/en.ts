@@ -2,6 +2,61 @@ import type { Messages } from "./ar";
 import { accountEn } from "../features/account/account.messages";
 
 export const en = {
+  "admin.workspaceLabel": "Administration workspace",
+  "admin.footer": "A considered space to manage Natiq",
+  "admin.overviewIntro":
+    "Start with what needs your attention. Make every decision informed.",
+  "admin.priority": "Review priority",
+  "admin.pendingTitle": "Specialist applications",
+  "admin.waitingReview": "awaiting review",
+  "admin.countUnavailable": "Count unavailable",
+  "admin.noPending":
+    "No specialist applications are awaiting review. You can still explore previous applications.",
+  "admin.reviewHelp":
+    "Review the qualifications and supporting document before granting specialist access.",
+  "admin.reviewCta": "Review Specialist Applications",
+  "admin.viewAll": "View all applications",
+  "admin.accountHelp":
+    "The account you are currently using to administer the platform.",
+  "admin.reviewWorkflow": "A considered review",
+  "admin.reviewThoughtfully": "From application to a clear decision",
+  "admin.stepRead":
+    "Read the specialization, qualification and professional information.",
+  "admin.stepDocument":
+    "Download the supporting document and review it in context.",
+  "admin.stepDecide":
+    "Approve the application or explain your rejection to the applicant.",
+  "admin.privateDocuments":
+    "Documents are private. Access them for review and avoid sharing them outside that purpose.",
+  "admin.traceableTitle": "A clear decision, on record",
+  "admin.traceableHelp":
+    "Review decisions are recorded. Rejection reasons are visible to applicants so they can understand the outcome.",
+  "admin.applicationsIntro":
+    "Review professional applications and qualifications, then make an informed decision.",
+  "admin.search": "Search displayed applications",
+  "admin.searchPlaceholder": "Specialist name, email or specialization",
+  "admin.filterStatus": "Application status",
+  "admin.allStatuses": "All statuses",
+  "admin.listLimit":
+    "Up to 100 of the oldest applications are shown. Search and filters cover these records, not the full history.",
+  "admin.submitted": "Submitted on",
+  "admin.notSubmitted": "Not yet submitted",
+  "admin.noResults": "No applications match your selection",
+  "admin.noResultsHelp": "Try another name or view all statuses.",
+  "admin.clearFilters": "Clear search and filters",
+  "admin.noApplicationsHelp":
+    "Applications will appear here when specialists start registering.",
+  "admin.applicant": "Applicant",
+  "admin.documentPrivate":
+    "Private document — downloaded through authorized access.",
+  "admin.noSummary": "No additional professional information provided.",
+  "admin.reviewHistory": "Review history",
+  "admin.refreshDetails": "Refresh application details",
+  "admin.reasonHint":
+    "Write a clear, respectful reason of 10 to 1000 characters. It will be visible to the applicant.",
+  "admin.confirmTarget":
+    "Check the applicant details before confirming your decision.",
+  "admin.refreshList": "Refresh applications",
   ...accountEn,
   "account.connections": "Connect sign-in methods",
   "account.connectionsHelp":

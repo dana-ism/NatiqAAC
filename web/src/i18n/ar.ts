@@ -1,5 +1,53 @@
 import { accountAr } from "../features/account/account.messages";
 export const ar = {
+  "admin.workspaceLabel": "مساحة الإدارة",
+  "admin.footer": "مساحة واضحة لإدارة ناطق",
+  "admin.overviewIntro": "ابدأ بما يحتاج انتباهك، واتخذ كل قرار على بيّنة.",
+  "admin.priority": "أولوية المراجعة",
+  "admin.pendingTitle": "طلبات الأخصائيين",
+  "admin.waitingReview": "طلب بانتظار المراجعة",
+  "admin.countUnavailable": "تعذّر جلب العدد",
+  "admin.noPending":
+    "لا توجد طلبات أخصائيين بانتظار المراجعة حاليًا. يمكنك الاطلاع على الطلبات السابقة.",
+  "admin.reviewHelp":
+    "راجع المؤهلات والمستند المرفق قبل الموافقة على وصول الأخصائي.",
+  "admin.reviewCta": "مراجعة طلبات الأخصائيين",
+  "admin.viewAll": "عرض جميع الطلبات",
+  "admin.accountHelp": "هذا هو الحساب الذي تستخدمه لإدارة المنصة حاليًا.",
+  "admin.reviewWorkflow": "مراجعة متأنّية",
+  "admin.reviewThoughtfully": "من الطلب إلى قرار واضح",
+  "admin.stepRead": "اطّلع على التخصص والمؤهل والمعلومات المهنية.",
+  "admin.stepDocument": "نزّل مستند الإثبات وراجعه في سياق الطلب.",
+  "admin.stepDecide": "وافق على الطلب أو وضّح سبب الرفض لصاحبه.",
+  "admin.privateDocuments":
+    "المستندات خاصة. افتحها للمراجعة فقط، وتجنّب مشاركتها خارج هذا السياق.",
+  "admin.traceableTitle": "قرار موثّق وواضح",
+  "admin.traceableHelp":
+    "يُحفظ قرار المراجعة، ويظهر سبب الرفض لصاحب الطلب ليسهل فهم النتيجة.",
+  "admin.applicationsIntro":
+    "راجع الطلبات المهنية ومؤهلات أصحابها، ثم اتخذ القرار المناسب.",
+  "admin.search": "البحث في الطلبات المعروضة",
+  "admin.searchPlaceholder": "اسم الأخصائي أو بريده أو تخصصه",
+  "admin.filterStatus": "حالة الطلب",
+  "admin.allStatuses": "كل الحالات",
+  "admin.listLimit":
+    "تُعرض حتى 100 من أقدم الطلبات. البحث والتصفية يشملان المعروض فقط، وليس كامل السجل.",
+  "admin.submitted": "تاريخ إرسال الطلب",
+  "admin.notSubmitted": "لم يُرسل بعد",
+  "admin.noResults": "لا توجد طلبات تطابق اختيارك",
+  "admin.noResultsHelp": "جرّب اسمًا آخر أو اعرض كل الحالات.",
+  "admin.clearFilters": "إزالة البحث والتصفية",
+  "admin.noApplicationsHelp":
+    "ستظهر الطلبات هنا عندما يبدأ الأخصائيون التسجيل.",
+  "admin.applicant": "صاحب الطلب",
+  "admin.documentPrivate": "مستند خاص — يُنزّل عبر اتصال مصرح به.",
+  "admin.noSummary": "لم تُضف معلومات مهنية أخرى.",
+  "admin.reviewHistory": "سجل المراجعة",
+  "admin.refreshDetails": "تحديث تفاصيل الطلب",
+  "admin.reasonHint":
+    "اكتب سببًا واضحًا ومحترمًا من 10 إلى 1000 حرف. سيظهر لصاحب الطلب.",
+  "admin.confirmTarget": "راجع بيانات صاحب الطلب قبل تأكيد القرار.",
+  "admin.refreshList": "تحديث الطلبات",
   ...accountAr,
   "account.connections": "ربط طرق تسجيل الدخول",
   "account.connectionsHelp":

@@ -13,6 +13,8 @@ import { hash } from 'bcrypt';
 import request from 'supertest';
 import { AuthController } from '../src/auth/auth.controller';
 import { AdminController } from '../src/admin/admin.controller';
+import { SpecialistAdminController } from '../src/specialist/specialist.controller';
+import { SpecialistService } from '../src/specialist/specialist.service';
 import { RolesGuard } from '../src/auth/guards/roles.guard';
 import { AuthService } from '../src/auth/auth.service';
 import { JwtStrategy } from '../src/auth/strategies/jwt.strategy';
@@ -61,11 +63,13 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
     recordFailure: jest.fn(),
     finalizeSuccess: jest.fn(),
   };
+  const specialist = { summary: jest.fn() };
   beforeAll(async () => {
     passwordHash = await hash(password, 12);
   });
   beforeEach(async () => {
     jest.resetAllMocks();
+    specialist.summary.mockResolvedValue({ pendingCount: 140 });
     user = {
       legacyAuthExempt: true,
       id,
@@ -101,8 +105,9 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
           storage: new ThrottlerStorageService(),
         }),
       ],
-      controllers: [AuthController, AdminController],
+      controllers: [AuthController, AdminController, SpecialistAdminController],
       providers: [
+        { provide: SpecialistService, useValue: specialist },
         AuthService,
         AccountLifecycleService,
         {
@@ -135,6 +140,39 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
     configureApp(app);
     await app.init();
     jwt = app.get(JwtService);
+  });
+
+  it('returns an exact pending summary only to a current active Admin', async () => {
+    await request(app.getHttpServer())
+      .get('/admin/specialist-applications/summary')
+      .expect(401);
+    user.role = 'ADMIN';
+    const result = await request(app.getHttpServer())
+      .get('/admin/specialist-applications/summary')
+      .auth(meToken(jwt, { role: 'ADMIN' }), { type: 'bearer' })
+      .expect(200);
+    expect(result.body).toEqual({ pendingCount: 140 });
+    expect(specialist.summary).toHaveBeenCalledTimes(1);
+  });
+  it.each(['PARENT', 'SPECIALIST'])(
+    'denies a stale Admin claim when the current role is %s',
+    async (role) => {
+      user.role = role;
+      await request(app.getHttpServer())
+        .get('/admin/specialist-applications/summary')
+        .auth(meToken(jwt, { role: 'ADMIN' }), { type: 'bearer' })
+        .expect(403);
+      expect(specialist.summary).not.toHaveBeenCalled();
+    },
+  );
+  it('denies a suspended Admin before accessing the pending summary', async () => {
+    user.role = 'ADMIN';
+    user.status = 'SUSPENDED';
+    await request(app.getHttpServer())
+      .get('/admin/specialist-applications/summary')
+      .auth(meToken(jwt, { role: 'ADMIN' }), { type: 'bearer' })
+      .expect(401);
+    expect(specialist.summary).not.toHaveBeenCalled();
   });
   afterEach(async () => {
     if (app) await app.close();

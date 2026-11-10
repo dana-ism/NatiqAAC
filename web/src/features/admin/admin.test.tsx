@@ -15,7 +15,7 @@ const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status });
 beforeEach(() => {
   vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000");
-  fetchMock = vi.fn();
+  fetchMock = vi.fn().mockResolvedValue(json({ pendingCount: 0 }));
   vi.stubGlobal("fetch", fetchMock);
 });
 function mount(path = "/admin") {
@@ -72,7 +72,11 @@ it("loads backend-projected identity, translates without refetch and signs out l
   mount();
   await login();
   fetchMock.mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }));
-  expect(await screen.findByText(ar["admin.accessVerified"])).toBeVisible();
+  expect(await screen.findByText(ar["admin.accountTitle"])).toBeVisible();
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+  expect(
+    screen.queryByText(ar["admin.accessVerified"]),
+  ).not.toBeInTheDocument();
   expect(fetchMock.mock.calls[2][1].headers.Authorization).toMatch(/^Bearer /);
   expect(screen.queryByText("synthetic-id")).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "English" }));
@@ -81,12 +85,12 @@ it("loads backend-projected identity, translates without refetch and signs out l
   );
   expect(document.documentElement).toHaveAttribute("dir", "ltr");
   expect(localStorage.getItem("natiqaac.locale")).toBe("en");
-  expect(fetchMock).toHaveBeenCalledTimes(3);
+  expect(fetchMock).toHaveBeenCalledTimes(4);
   await userEvent.click(
     screen.getByRole("button", { name: en["home.signOut"] }),
   );
   expect(await screen.findByText(en["session.signedOut"])).toBeVisible();
-  expect(fetchMock).toHaveBeenCalledTimes(3);
+  expect(fetchMock).toHaveBeenCalledTimes(4);
   expect(Object.keys(localStorage)).toEqual(["natiqaac.locale"]);
 });
 it.each([401, 403])(
@@ -114,4 +118,122 @@ it("hides protected data on service failure and supports explicit retry", async 
   fetchMock.mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }));
   fireEvent.click(screen.getByRole("button", { name: ar["session.retry"] }));
   await waitFor(() => expect(screen.getByText(email)).toBeVisible());
+});
+
+it.each([0, 3, 140])(
+  "shows the actual pending count %s, with no fabricated verification badge",
+  async (pendingCount) => {
+    mount();
+    await login();
+    fetchMock
+      .mockResolvedValueOnce(
+        json({ account: { email, role: "ADMIN", emailVerified: false } }),
+      )
+      .mockResolvedValueOnce(json({ pendingCount }));
+    await screen.findByText(email);
+    await waitFor(() =>
+      expect(
+        document.querySelector(".admin-pending-count strong"),
+      ).toHaveTextContent(new Intl.NumberFormat("ar").format(pendingCount)),
+    );
+    expect(
+      screen.queryByText(ar["admin.accessVerified"]),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: ar["admin.reviewCta"] }),
+    ).toHaveAttribute(
+      "href",
+      "/admin/specialist-applications?status=PENDING_REVIEW",
+    );
+    if (pendingCount === 0)
+      expect(screen.getByText(ar["admin.noPending"])).toBeVisible();
+  },
+);
+
+it("announces a loading summary without briefly fabricating an empty queue", async () => {
+  let resolveSummary!: (response: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    resolveSummary = resolve;
+  });
+  mount();
+  await login();
+  fetchMock
+    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockReturnValueOnce(pending);
+  await screen.findByText(email);
+  await waitFor(() =>
+    expect(document.querySelector(".admin-pending-count")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    ),
+  );
+  expect(document.querySelector(".admin-pending-count strong")).toBeNull();
+  expect(screen.queryByText(ar["admin.noPending"])).not.toBeInTheDocument();
+  resolveSummary(json({ pendingCount: 2 }));
+  await waitFor(() =>
+    expect(document.querySelector(".admin-pending-count")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    ),
+  );
+  expect(
+    document.querySelector(".admin-pending-count strong"),
+  ).toHaveTextContent(new Intl.NumberFormat("ar").format(2));
+});
+
+it("does not show zero when the summary fails and retries without reloading the account", async () => {
+  mount();
+  await login();
+  fetchMock
+    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockResolvedValueOnce(json({}, 503));
+  expect(await screen.findByText(ar["admin.countUnavailable"])).toBeVisible();
+  expect(document.querySelector(".admin-pending-count strong")).toBeNull();
+  expect(screen.getByText(email)).toBeVisible();
+  fetchMock.mockResolvedValueOnce(json({ pendingCount: 8 }));
+  await userEvent.click(
+    screen.getByRole("button", { name: ar["session.retry"] }),
+  );
+  await waitFor(() =>
+    expect(
+      document.querySelector(".admin-pending-count strong"),
+    ).toHaveTextContent(new Intl.NumberFormat("ar").format(8)),
+  );
+  expect(
+    fetchMock.mock.calls.filter(([url]) => url.endsWith("/admin/overview")),
+  ).toHaveLength(1);
+});
+
+it("rejects a malformed summary without treating it as an empty queue", async () => {
+  mount();
+  await login();
+  fetchMock
+    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockResolvedValueOnce(json({ pendingCount: -1 }));
+  expect(await screen.findByText(ar["admin.countUnavailable"])).toBeVisible();
+  expect(screen.queryByText(ar["admin.noPending"])).not.toBeInTheDocument();
+});
+
+it("keeps one shared Admin layout and switches the single current navigation destination", async () => {
+  mount();
+  await login();
+  fetchMock
+    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockResolvedValueOnce(json({ pendingCount: 0 }));
+  await screen.findByText(email);
+  expect(document.querySelectorAll('nav [aria-current="page"]')).toHaveLength(
+    1,
+  );
+  fetchMock.mockResolvedValueOnce(json({ applications: [] }));
+  await userEvent.click(
+    screen.getByRole("link", { name: ar["account.applications"] }),
+  );
+  expect(await screen.findByText(ar["account.empty"])).toBeVisible();
+  expect(
+    screen.getByRole("link", { name: ar["account.applications"] }),
+  ).toHaveAttribute("aria-current", "page");
+  expect(
+    screen.getByRole("link", { name: ar["admin.overview"] }),
+  ).not.toHaveAttribute("aria-current");
+  expect(document.querySelectorAll(".admin-shell")).toHaveLength(1);
 });
