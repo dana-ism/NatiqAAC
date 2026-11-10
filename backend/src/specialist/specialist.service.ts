@@ -112,6 +112,13 @@ export class SpecialistService {
     return { message: 'Application submitted for review' };
   }
 
+  async summary() {
+    const pendingCount = await this.prisma.specialistApplication.count({
+      where: { status: 'PENDING_REVIEW' },
+    });
+    return { pendingCount };
+  }
+
   async list() {
     const applications = await this.prisma.specialistApplication.findMany({
       orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],

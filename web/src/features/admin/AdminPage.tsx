@@ -1,180 +1,164 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useSession } from "../auth/session-context";
-import { record } from "../../shared/api";
-import { ErrorAlert, Loading } from "../../shared/Feedback";
-import { Mark } from "../../shared/Icons";
 import { useI18n } from "../../i18n/context";
-import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
-import "./admin.css";
-
-type Overview = { account: { email: string; role: "ADMIN" } };
-function overview(value: unknown): value is Overview {
+import { record } from "../../shared/api";
+import { ErrorAlert } from "../../shared/Feedback";
+import { AdminIcon } from "./AdminIcons";
+function summary(v: unknown): v is { pendingCount: number } {
   return (
-    record(value) &&
-    record(value.account) &&
-    typeof value.account.email === "string" &&
-    value.account.role === "ADMIN"
+    record(v) &&
+    Number.isSafeInteger(v.pendingCount) &&
+    (v.pendingCount as number) >= 0
   );
 }
-
 export function AdminPage() {
-  const session = useSession();
+  const { t, locale } = useI18n();
+  const account = useOutletContext<{ email: string; role: "ADMIN" }>(),
+    session = useSession();
   const load = useRef(session.authenticatedGet);
-  const { t } = useI18n();
-  const [data, setData] = useState<Overview | null>(null);
+  const [count, setCount] = useState<number | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
-  const [navigation, setNavigation] = useState(false);
-  const navigationToggle = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const controller = new AbortController();
     void load
-      .current("/admin/overview", overview, controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) setData(result);
+      .current(
+        "/admin/specialist-applications/summary",
+        summary,
+        controller.signal,
+      )
+      .then((v) => {
+        if (!controller.signal.aborted) setCount(v.pendingCount);
       })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) setFailure(error);
+      .catch((e: unknown) => {
+        if (!controller.signal.aborted) setFailure(e);
       });
     return () => controller.abort();
   }, [attempt]);
   return (
-    <div className="admin-shell">
-      <a className="skip-link" href="#main">
-        {t("layout.skip")}
-      </a>
-      <aside className="admin-sidebar" aria-label={t("admin.navigation")}>
-        <Link className="brand" to="/admin" aria-label={t("admin.title")}>
-          <Mark />
-          <span>
-            <strong>
-              {t("brand.name")}
-              <span className="brand-dot">.</span>
-            </strong>
-            <span className="brand-caption">{t("admin.portal")}</span>
-          </span>
-        </Link>
-        <button
-          ref={navigationToggle}
-          className="admin-menu-toggle"
-          aria-expanded={navigation}
-          aria-controls="admin-navigation"
-          onClick={() => setNavigation(!navigation)}
+    <>
+      <div className="admin-page-heading">
+        <p className="admin-eyebrow">{t("admin.workspace")}</p>
+        <h1>{t("admin.title")}</h1>
+        <p>{t("admin.overviewIntro")}</p>
+      </div>
+      <div className="admin-overview-grid">
+        <section
+          className="admin-attention admin-panel"
+          aria-labelledby="attention-title"
         >
-          {t("admin.navigation")}
-          <span aria-hidden="true">☰</span>
-        </button>
-        <nav id="admin-navigation" className={navigation ? "is-open" : ""}>
-          <p className="admin-nav-label">{t("admin.workspace")}</p>
-          <Link
-            to="/admin"
-            aria-current="page"
-            onClick={() => {
-              if (navigation) navigationToggle.current?.focus();
-              setNavigation(false);
-            }}
+          <div className="admin-panel-heading">
+            <span className="admin-icon-tile">
+              <AdminIcon name="applications" />
+            </span>
+            <span className="admin-eyebrow">{t("admin.priority")}</span>
+          </div>
+          <h2 id="attention-title">{t("admin.pendingTitle")}</h2>
+          <div
+            className="admin-pending-count"
+            aria-live="polite"
+            aria-busy={count === null && !failure}
           >
-            <span aria-hidden="true">▦</span>
-            {t("admin.overview")}
-          </Link>
-          <Link to="/admin/specialist-applications">
-            {t("account.applications")}
-          </Link>
-          <p className="admin-sidebar-note">{t("admin.scope")}</p>
-        </nav>
-        <p className="admin-sidebar-footer">
-          NatiqAAC <span aria-hidden="true">/</span> {t("admin.portal")}
-        </p>
-      </aside>
-      <div className="admin-body">
-        <header className="admin-header">
-          <span className="admin-breadcrumb">
-            {t("admin.portal")} <span aria-hidden="true">/</span>{" "}
-            <strong>{t("admin.overview")}</strong>
-          </span>
-          <div className="admin-header-actions">
-            <LanguageSwitcher />
-            <button className="admin-signout" onClick={session.signOut}>
-              {t("home.signOut")}
-            </button>
+            {failure ? (
+              <span className="admin-count-unavailable">
+                {t("admin.countUnavailable")}
+              </span>
+            ) : count === null ? (
+              <span className="admin-skeleton" aria-label={t("auth.wait")} />
+            ) : (
+              <>
+                <strong>{new Intl.NumberFormat(locale).format(count)}</strong>
+                <span>{t("admin.waitingReview")}</span>
+              </>
+            )}
           </div>
-        </header>
-        <main id="main" tabIndex={-1} className="admin-main">
-          <div className="admin-page-heading">
-            <span className="section-tag">{t("admin.workspace")}</span>
-            <h1>{t("admin.title")}</h1>
-            <p>{t("admin.intro")}</p>
-          </div>
-          {!data && !failure && <Loading />}
           {failure ? (
-            <section className="admin-panel">
-              <h2>{t("admin.unavailable")}</h2>
+            <>
               <ErrorAlert error={failure} />
               <button
-                className="primary-button"
+                className="admin-text-button"
                 onClick={() => {
                   setFailure(null);
-                  setData(null);
-                  setAttempt(attempt + 1);
+                  setCount(null);
+                  setAttempt((n) => n + 1);
                 }}
               >
                 {t("session.retry")}
               </button>
-            </section>
+            </>
           ) : (
-            data && (
-              <>
-                <section
-                  className="admin-account admin-panel"
-                  aria-labelledby="admin-account-title"
-                >
-                  <div className="admin-account-mark" aria-hidden="true">
-                    <Mark />
-                  </div>
-                  <div>
-                    <span className="section-tag">
-                      {t("admin.currentAccount")}
-                    </span>
-                    <h2 id="admin-account-title">{t("admin.accountTitle")}</h2>
-                    <p className="admin-email" dir="ltr">
-                      {data.account.email}
-                    </p>
-                    <span className="role-badge">{t("role.ADMIN")}</span>
-                  </div>
-                  <span className="admin-access-badge">
-                    <span aria-hidden="true">✓</span>{" "}
-                    {t("admin.accessVerified")}
-                  </span>
-                </section>
-                <div className="admin-guidance">
-                  <section className="admin-panel">
-                    <span className="admin-panel-icon" aria-hidden="true">
-                      ◇
-                    </span>
-                    <h2>{t("admin.privacyTitle")}</h2>
-                    <p>{t("admin.privacy")}</p>
-                  </section>
-                  <section className="admin-panel">
-                    <span className="admin-panel-icon" aria-hidden="true">
-                      ↗
-                    </span>
-                    <h2>{t("admin.foundationTitle")}</h2>
-                    <p>{t("admin.foundation")}</p>
-                  </section>
-                </div>
-                <section className="admin-session-note">
-                  <h2>{t("admin.sessionTitle")}</h2>
-                  <p>
-                    {t("auth.reload")} {t("home.localSignOut")}
-                  </p>
-                </section>
-              </>
-            )
+            <p>{t(count === 0 ? "admin.noPending" : "admin.reviewHelp")}</p>
           )}
-        </main>
-        <footer className="admin-footer">{t("layout.footer")}</footer>
+          <Link
+            className="admin-button"
+            to="/admin/specialist-applications?status=PENDING_REVIEW"
+          >
+            {t("admin.reviewCta")}
+            <AdminIcon className="admin-directional" name="arrow" />
+          </Link>
+          <Link className="admin-text-link" to="/admin/specialist-applications">
+            {t("admin.viewAll")}
+          </Link>
+        </section>
+        <section
+          className="admin-account admin-panel"
+          aria-labelledby="admin-account-title"
+        >
+          <div className="admin-panel-heading">
+            <span className="admin-icon-tile">
+              <AdminIcon name="shield" />
+            </span>
+            <span className="admin-eyebrow">{t("admin.currentAccount")}</span>
+          </div>
+          <h2 id="admin-account-title">{t("admin.accountTitle")}</h2>
+          <dl>
+            <dt>{t("auth.email")}</dt>
+            <dd className="admin-email" dir="ltr">
+              {account.email}
+            </dd>
+          </dl>
+          <p className="admin-account-note">{t("admin.accountHelp")}</p>
+        </section>
       </div>
-    </div>
+      <section className="admin-workflow" aria-labelledby="workflow-title">
+        <div>
+          <p className="admin-eyebrow">{t("admin.reviewWorkflow")}</p>
+          <h2 id="workflow-title">{t("admin.reviewThoughtfully")}</h2>
+        </div>
+        <ol>
+          {(
+            [
+              "admin.stepRead",
+              "admin.stepDocument",
+              "admin.stepDecide",
+            ] as const
+          ).map((key, index) => (
+            <li key={key}>
+              <span aria-hidden="true">
+                {new Intl.NumberFormat(locale).format(index + 1)}
+              </span>
+              <p>{t(key)}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+      <div className="admin-guidance">
+        <section>
+          <AdminIcon name="shield" />
+          <div>
+            <h2>{t("admin.privacyTitle")}</h2>
+            <p>{t("admin.privateDocuments")}</p>
+          </div>
+        </section>
+        <section>
+          <AdminIcon name="document" />
+          <div>
+            <h2>{t("admin.traceableTitle")}</h2>
+            <p>{t("admin.traceableHelp")}</p>
+          </div>
+        </section>
+      </div>
+    </>
   );
 }

@@ -8,6 +8,8 @@ import { ErrorAlert, Loading } from "../shared/Feedback";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/context";
 import { AdminPage } from "../features/admin/AdminPage";
+import { AdminLayout } from "../features/admin/AdminLayout";
+import { AdminApplicationsPage } from "../features/admin/AdminApplicationsPage";
 import {
   AccountTypePage,
   ParentRegistrationPage,
@@ -15,7 +17,6 @@ import {
   VerificationPendingPage,
   VerificationResultPage,
   ApplicationStatusPage,
-  AdminApplicationsPage,
 } from "../features/account/AccountPages";
 import { SocialButtons } from "../features/account/SocialButtons";
 
@@ -93,15 +94,14 @@ function AppContent() {
   ) {
     return (
       <Routes>
-        <Route
-          path="/admin/specialist-applications"
-          element={
-            <Layout>
-              <AdminApplicationsPage />
-            </Layout>
-          }
-        />
-        <Route path="*" element={<ProtectedHome admin />} />
+        <Route element={<AdminLayout />}>
+          <Route path="/admin" element={<AdminPage />} />
+          <Route
+            path="/admin/specialist-applications"
+            element={<AdminApplicationsPage />}
+          />
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Route>
       </Routes>
     );
   }

@@ -205,6 +205,48 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
     }
   });
 
+  it('counts pending applications beyond the 100-row list cap and excludes other states', async () => {
+    const before = await prisma.specialistApplication.count({
+      where: { status: 'PENDING_REVIEW' },
+    });
+    const statuses = [
+      ...Array.from({ length: 105 }, () => 'PENDING_REVIEW' as const),
+      'DRAFT' as const,
+      'APPROVED' as const,
+      'REJECTED' as const,
+    ];
+    const owners = statuses.map((_, i) => {
+      const id = randomUUID();
+      ids.add(id);
+      return {
+        id,
+        email: syntheticEmail(`summary-${i}`),
+        fullName: 'Synthetic summary fixture',
+        role: 'SPECIALIST' as const,
+        status: 'ACTIVE' as const,
+      };
+    });
+    await prisma.user.createMany({ data: owners });
+    await prisma.specialistApplication.createMany({
+      data: owners.map((u, i) => ({
+        userId: u.id,
+        specialization: 'Synthetic',
+        qualification: 'Synthetic',
+        status: statuses[i],
+      })),
+    });
+    const summary = await bearerGet(
+      '/admin/specialist-applications/summary',
+      adminToken,
+    ).expect(200);
+    expect(summary.body).toEqual({ pendingCount: before + 105 });
+    const list = await bearerGet(
+      '/admin/specialist-applications',
+      adminToken,
+    ).expect(200);
+    expect(list.body.applications).toHaveLength(100);
+  });
+
   it('restricts a new parent until actual persisted token consumption then grants normal access', async () => {
     const parent = await register('parent', 'parent-flow');
     expect(parent.response.body).not.toHaveProperty('access_token');

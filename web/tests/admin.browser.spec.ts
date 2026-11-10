@@ -8,6 +8,8 @@ for (const width of [375, 768, 1024, 1440]) {
     test(`Admin ${locale} at ${width}px: authorization UX, keyboard, reflow and axe`, async ({
       page,
     }) => {
+      // Cold Windows browser startup plus axe and two locale/navigation passes.
+      test.setTimeout(60_000);
       const copy = locale === "ar" ? ar : en;
       await page.setViewportSize({ width, height: 1000 });
       const token = `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 900 })).toString("base64url")}.signature`;
@@ -42,6 +44,8 @@ for (const width of [375, 768, 1024, 1440]) {
             `Bearer ${token}`,
           );
           body = { account: { email: user.email, role: user.role } };
+        } else if (path === "/admin/specialist-applications/summary") {
+          body = { pendingCount: 0 };
         } else throw new Error(`Unexpected request: ${path}`);
         await route.fulfill({
           status: 200,
@@ -63,7 +67,7 @@ for (const width of [375, 768, 1024, 1440]) {
         .getByRole("button", { name: copy["auth.login"], exact: true })
         .click();
       await expect(page).toHaveURL(/\/admin$/);
-      await expect(page.getByText(copy["admin.accessVerified"])).toBeVisible();
+      await expect(page.getByText(copy["admin.accountTitle"])).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute(
         "dir",
         locale === "ar" ? "rtl" : "ltr",

@@ -1,5 +1,9 @@
 # Admin Portal V1
 
+The dedicated [Admin frontend experience](admin-frontend-experience.md) extends
+this baseline with a shared review workspace and an exact pending-count endpoint.
+Its delivery report distinguishes implementation from external setup and tests.
+
 This document describes the V1 baseline. Account Management V2 extends it with
 specialist applications, transactional decisions/audit and private document review;
 see [V2 implementation and migration guide](auth-account-management-v2.md).
