@@ -1,5 +1,10 @@
 # Authentication V2: providers, mail and account linking
 
+The [activation verification report](oauth-provider-activation.ar.md) records the
+current owner configuration blockers and the isolated OAuth HTTP/Prisma/Redis
+lifecycle suite. A synthetic provider adapter never establishes live Google or
+Facebook authentication success.
+
 ## Implementation and external status
 
 The NestJS modular monolith owns authentication, user records, provider identities,
