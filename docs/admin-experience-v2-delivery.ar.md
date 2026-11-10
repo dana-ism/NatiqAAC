@@ -148,7 +148,9 @@ PDF يمر عبر backend موثّق، ولا public Storage URL أو service-ro
 
 ## 21. Git والتسليم
 
-سيُسجل SHA والرابط ونتيجة الدفع بعد إتمام الفحوص ومراجعة staging. الهدف PR تابع لـ`feature/admin-signature-experience`. لا force-push أو merge تلقائي أو تغيير main، و`opencode.json` في الشجرة الأصلية محفوظ. لا schema/migrations/dependencies/env ضمن التغيير.
+دُفع `feature/admin-experience-v2` طبيعيًا إلى origin. commit التنفيذ: `d2737e372f66c05e16b7b1c8c35695c62d89162f` بعنوان `feat(admin): deliver V2 dashboard and honest module workspaces`. روجع staging صراحة:95 ملفًا، منها56 صورة؛ لا env أو opencode أو dependencies أو مخرجات بناء. فحص308 ملفات لم يجد تطابقًا مع الأسرار المحلية المعروفة.
+
+فُتحت [PR #8](https://github.com/dana-ism/NatiqAAC/pull/8)، مفتوحة وغير مدمجة، إلى `feature/admin-signature-experience`، وتابعة لـ[PR #7](https://github.com/dana-ism/NatiqAAC/pull/7). محاكاة `git merge-tree --write-tree origin/feature/admin-signature-experience HEAD` نجحت دون conflict عند القاعدة المفحوصة. لم يُغيّر main أو يُستخدم force-push أو merge تلقائي. يأتي تحديث التوثيق لتسجيل التسليم بعد commit التنفيذ؛ SHA المذكور هو التنفيذ، وليس إحالة دائرية إلى commit التقرير نفسه. بقيت الشجرة الأصلية على فرع Auth مع `opencode.json` المحلي خارج التغيير. لا schema/migrations/dependencies/env ضمن التسليم.
 
 ## 22. الحدود
 
@@ -221,4 +223,4 @@ PDF يمر عبر backend موثّق، ولا public Storage URL أو service-ro
 | لا تراجع مصادقة | PARTIAL | المصدر لم يُعدّل والمجموعات تمر؛ المزود الحي غير مفحوص |
 | لا تراجع صلاحيات الإدارة | PASS | guards الحالية و49 HTTP، منها المسار الجديد |
 | لا ضرر لقاعدة البيانات | PASS | لا schema/migration أو كتابة على Supabase؛ اختبارات معزولة |
-| تسليم Git مراجع | PARTIAL | يستكمل بعد الفحوص والدفع |
+| تسليم Git مراجع | PASS | commit ودفع عادي وPR #8 تابع لـ#7؛ لا دمج تلقائي |
