@@ -1,5 +1,9 @@
 # Signature Admin experience
 
+The subsequent [Admin experience V2](admin-experience-v2.md) adds the owner's newly
+approved future-section navigation and a read-only dashboard snapshot. This guide
+describes the earlier two-section baseline; its security boundaries are preserved.
+
 This presentation and interaction update depends on the existing Admin frontend
 branch at `5169bc8`. It does not introduce a backend endpoint, package, schema,
 migration, provider, or persistent session mechanism. The original implementation

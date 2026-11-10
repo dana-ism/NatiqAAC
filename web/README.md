@@ -16,6 +16,9 @@ refined review workspace, modal mobile navigation and delivery evidence.
 
 ## Start locally
 
+The latest [Admin experience V2](../docs/admin-experience-v2.md) documents all six
+routes, honest Coming Soon pages, global metrics and the read-only dashboard API.
+
 Use Node 24.15+ (verified on 24.22) and the committed npm lockfile. On Windows use `npm.cmd` if PowerShell blocks `npm.ps1`.
 
 ```powershell

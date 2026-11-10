@@ -20,7 +20,7 @@ for (const locale of ["ar", "en"] as const) {
       .getByRole("button", { name: copy["session.retry"], exact: true })
       .click();
     await expect(page.locator(".admin-result-count strong")).toHaveText(
-      new Intl.NumberFormat(locale).format(1),
+      new Intl.NumberFormat(locale, { numberingSystem: "latn" }).format(1),
     );
     const lists = state.lists;
     await page.getByRole("searchbox").fill("no-match");

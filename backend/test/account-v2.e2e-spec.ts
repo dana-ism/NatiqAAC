@@ -247,6 +247,83 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
     expect(list.body.applications).toHaveLength(100);
   });
 
+  it('returns full dashboard metrics and the newest five submitted requests independently of the old list cap', async () => {
+    const baseline = await Promise.all([
+      prisma.specialistApplication.count({
+        where: { status: 'PENDING_REVIEW' },
+      }),
+      prisma.specialistApplication.count({ where: { status: 'APPROVED' } }),
+      prisma.specialistApplication.count({ where: { status: 'REJECTED' } }),
+      prisma.specialistApplication.count(),
+    ]);
+    const statuses = [
+      'PENDING_REVIEW',
+      'APPROVED',
+      'PENDING_REVIEW',
+      'REJECTED',
+      'APPROVED',
+      'PENDING_REVIEW',
+      'PENDING_REVIEW',
+      'DRAFT',
+    ] as const;
+    const owners = statuses.map((_, index) => {
+      const id = randomUUID();
+      ids.add(id);
+      return {
+        id,
+        email: syntheticEmail(`dashboard-${index}`),
+        fullName: 'Synthetic dashboard applicant',
+        role: 'SPECIALIST' as const,
+        status: 'ACTIVE' as const,
+      };
+    });
+    await prisma.user.createMany({ data: owners });
+    const applications = owners.map((owner, index) => ({
+      id: randomUUID(),
+      userId: owner.id,
+      specialization: 'Synthetic specialty',
+      qualification: 'Synthetic qualification',
+      status: statuses[index],
+      submittedAt: new Date(
+        Date.UTC(2099, 0, index >= 5 && index <= 6 ? 6 : index + 1),
+      ),
+    }));
+    await prisma.specialistApplication.createMany({ data: applications });
+    const result = await bearerGet(
+      '/admin/specialist-applications/dashboard',
+      adminToken,
+    ).expect(200);
+    expect(result.body).toMatchObject({
+      pendingCount: baseline[0] + 4,
+      approvedCount: baseline[1] + 2,
+      rejectedCount: baseline[2] + 1,
+      totalCount: baseline[3] + 8,
+    });
+    const expected = applications
+      .filter((a) => a.status !== 'DRAFT')
+      .sort(
+        (a, b) =>
+          b.submittedAt.getTime() - a.submittedAt.getTime() ||
+          b.id.localeCompare(a.id),
+      )
+      .slice(0, 5);
+    expect(
+      result.body.recentApplications.map((a: { id: string }) => a.id),
+    ).toEqual(expected.map((a) => a.id));
+    expect(result.body.recentApplications[0]).toEqual({
+      id: expected[0].id,
+      fullName: 'Synthetic dashboard applicant',
+      email: owners.find((o) => o.id === expected[0].userId)!.email,
+      specialization: 'Synthetic specialty',
+      qualification: 'Synthetic qualification',
+      status: expected[0].status,
+      submittedAt: expected[0].submittedAt.toISOString(),
+    });
+    expect(JSON.stringify(result.body)).not.toMatch(
+      /documentKey|passwordHash|tokenHash|reviewerId/,
+    );
+  });
+
   it('restricts a new parent until actual persisted token consumption then grants normal access', async () => {
     const parent = await register('parent', 'parent-flow');
     expect(parent.response.body).not.toHaveProperty('access_token');

@@ -87,6 +87,9 @@ export class SpecialistAdminController {
   @Get('summary') summary() {
     return this.service.summary();
   }
+  @Get('dashboard') dashboard() {
+    return this.service.dashboard();
+  }
   @Get(':id') details(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.details(id);
   }

@@ -1,0 +1,266 @@
+{
+  "date": "2026-11-10",
+  "configuration": {
+    "fields": {
+      "GOOGLE_CLIENT_ID": {
+        "present": false,
+        "placeholder": false
+      },
+      "GOOGLE_CLIENT_SECRET": {
+        "present": false,
+        "placeholder": false
+      },
+      "GOOGLE_REDIRECT_URI": {
+        "present": false,
+        "placeholder": false,
+        "urlValid": false
+      },
+      "FACEBOOK_APP_ID": {
+        "present": false,
+        "placeholder": false
+      },
+      "FACEBOOK_APP_SECRET": {
+        "present": false,
+        "placeholder": false
+      },
+      "FACEBOOK_REDIRECT_URI": {
+        "present": false,
+        "placeholder": false,
+        "urlValid": false
+      },
+      "FACEBOOK_GRAPH_VERSION": {
+        "present": false,
+        "placeholder": false,
+        "formatValid": false
+      },
+      "PUBLIC_WEB_ORIGIN": {
+        "present": true,
+        "placeholder": false,
+        "urlValid": true
+      },
+      "WEB_CORS_ORIGINS": {
+        "present": true,
+        "placeholder": false
+      },
+      "REDIS_URL": {
+        "present": true,
+        "placeholder": false
+      },
+      "DATABASE_URL": {
+        "present": true,
+        "placeholder": false
+      },
+      "DIRECT_URL": {
+        "present": true,
+        "placeholder": false
+      }
+    },
+    "providerConfigured": {
+      "GOOGLE": false,
+      "FACEBOOK": false
+    },
+    "publicOriginMatchesPreview": false,
+    "publicOriginMatchesOriginal": true,
+    "corsIncludesOriginal": true,
+    "source": "original backend/.env; values deliberately excluded"
+  },
+  "health": {
+    "redis": {
+      "ping": "PONG",
+      "readOnlyProbe": true
+    },
+    "database": {
+      "reachable": true,
+      "migrations": [
+        {
+          "migration_name": "20261024113332_init_users",
+          "finished": true,
+          "rolled_back": false
+        },
+        {
+          "migration_name": "20261109000100_auth_account_v2",
+          "finished": true,
+          "rolled_back": false
+        }
+      ],
+      "tables": [
+        {
+          "identities": true,
+          "verification": true,
+          "applications": true
+        }
+      ],
+      "readOnlyProbe": true
+    },
+    "http": [
+      {
+        "port": 3000,
+        "path": "/",
+        "status": 200
+      },
+      {
+        "port": 3000,
+        "path": "/admin/specialist-applications/dashboard",
+        "status": 401
+      },
+      {
+        "port": 3000,
+        "path": "/auth/oauth/start",
+        "method": "OPTIONS",
+        "status": 204,
+        "corsAllowed": true
+      },
+      {
+        "port": 3001,
+        "path": "/",
+        "status": 200
+      },
+      {
+        "port": 3001,
+        "path": "/admin/specialist-applications/dashboard",
+        "status": 401
+      },
+      {
+        "port": 3001,
+        "path": "/auth/oauth/start",
+        "method": "OPTIONS",
+        "status": 204,
+        "corsAllowed": true
+      }
+    ]
+  },
+  "browser": [
+    {
+      "path": "/login",
+      "provider": "GOOGLE",
+      "origin": "http://127.0.0.1:5173",
+      "externalProviderReached": false,
+      "console": ["resource HTTP 503"],
+      "pageErrors": 0,
+      "endpoint": "http://localhost:3000/auth/oauth/start",
+      "status": 503,
+      "request": {
+        "provider": "GOOGLE",
+        "intent": "login"
+      },
+      "response": {
+        "statusCode": 503,
+        "message": "Identity provider unavailable",
+        "error": "Service Unavailable"
+      },
+      "corsAllowed": true,
+      "displayedMessage": "!\n\nالخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا."
+    },
+    {
+      "path": "/login",
+      "provider": "FACEBOOK",
+      "origin": "http://127.0.0.1:5173",
+      "externalProviderReached": false,
+      "console": ["resource HTTP 503"],
+      "pageErrors": 0,
+      "endpoint": "http://localhost:3000/auth/oauth/start",
+      "status": 503,
+      "request": {
+        "provider": "FACEBOOK",
+        "intent": "login"
+      },
+      "response": {
+        "statusCode": 503,
+        "message": "Identity provider unavailable",
+        "error": "Service Unavailable"
+      },
+      "corsAllowed": true,
+      "displayedMessage": "!\n\nالخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا."
+    },
+    {
+      "path": "/register/parent",
+      "provider": "GOOGLE",
+      "origin": "http://127.0.0.1:5173",
+      "externalProviderReached": false,
+      "console": ["resource HTTP 503"],
+      "pageErrors": 0,
+      "endpoint": "http://localhost:3000/auth/oauth/start",
+      "status": 503,
+      "request": {
+        "provider": "GOOGLE",
+        "intent": "register",
+        "role": "PARENT"
+      },
+      "response": {
+        "statusCode": 503,
+        "message": "Identity provider unavailable",
+        "error": "Service Unavailable"
+      },
+      "corsAllowed": true,
+      "displayedMessage": "!\n\nالخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا."
+    },
+    {
+      "path": "/register/parent",
+      "provider": "FACEBOOK",
+      "origin": "http://127.0.0.1:5173",
+      "externalProviderReached": false,
+      "console": ["resource HTTP 503"],
+      "pageErrors": 0,
+      "endpoint": "http://localhost:3000/auth/oauth/start",
+      "status": 503,
+      "request": {
+        "provider": "FACEBOOK",
+        "intent": "register",
+        "role": "PARENT"
+      },
+      "response": {
+        "statusCode": 503,
+        "message": "Identity provider unavailable",
+        "error": "Service Unavailable"
+      },
+      "corsAllowed": true,
+      "displayedMessage": "!\n\nالخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا."
+    },
+    {
+      "path": "/register/specialist",
+      "provider": "GOOGLE",
+      "origin": "http://127.0.0.1:5173",
+      "externalProviderReached": false,
+      "console": ["resource HTTP 503"],
+      "pageErrors": 0,
+      "endpoint": "http://localhost:3000/auth/oauth/start",
+      "status": 503,
+      "request": {
+        "provider": "GOOGLE",
+        "intent": "register",
+        "role": "SPECIALIST"
+      },
+      "response": {
+        "statusCode": 503,
+        "message": "Identity provider unavailable",
+        "error": "Service Unavailable"
+      },
+      "corsAllowed": true,
+      "displayedMessage": "!\n\nالخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا."
+    },
+    {
+      "path": "/register/specialist",
+      "provider": "FACEBOOK",
+      "origin": "http://127.0.0.1:5173",
+      "externalProviderReached": false,
+      "console": ["resource HTTP 503"],
+      "pageErrors": 0,
+      "endpoint": "http://localhost:3000/auth/oauth/start",
+      "status": 503,
+      "request": {
+        "provider": "FACEBOOK",
+        "intent": "register",
+        "role": "SPECIALIST"
+      },
+      "response": {
+        "statusCode": 503,
+        "message": "Identity provider unavailable",
+        "error": "Service Unavailable"
+      },
+      "corsAllowed": true,
+      "displayedMessage": "!\n\nالخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا."
+    }
+  ],
+  "noAuthorizationCompleted": true,
+  "noAuthCodeOrEnvironmentChanges": true
+}

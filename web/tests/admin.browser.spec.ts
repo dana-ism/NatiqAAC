@@ -44,8 +44,14 @@ for (const width of [375, 768, 1024, 1440]) {
             `Bearer ${token}`,
           );
           body = { account: { email: user.email, role: user.role } };
-        } else if (path === "/admin/specialist-applications/summary") {
-          body = { pendingCount: 0 };
+        } else if (path === "/admin/specialist-applications/dashboard") {
+          body = {
+            pendingCount: 0,
+            approvedCount: 0,
+            rejectedCount: 0,
+            totalCount: 0,
+            recentApplications: [],
+          };
         } else throw new Error(`Unexpected request: ${path}`);
         await route.fulfill({
           status: 200,

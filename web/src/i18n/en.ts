@@ -2,6 +2,107 @@ import type { Messages } from "./ar";
 import { accountEn } from "../features/account/account.messages";
 
 export const en = {
+  "adminV2.settings": "Settings",
+  "adminV2.settingsHelp":
+    "Choose your display language now. Other administration settings are in development.",
+  "adminV2.availableNow": "Available now",
+  "adminV2.languageSetting": "Display language",
+  "adminV2.languageSettingHelp":
+    "Your language is saved in this browser and applied to the interface immediately.",
+  "adminV2.plannedWorkspace": "What this workspace will support",
+  "adminV2.frontendOnly": "Frontend foundation",
+  "adminV2.frontendOnlyHelp":
+    "These areas are in development. They are not connected to administrative data or operations yet.",
+  "adminV2.inPreparation": "In development · not available yet",
+  "adminV2.userDirectory": "User directory",
+  "adminV2.userDirectoryHelp":
+    "A workspace for parent and specialist accounts and their details. No records are loaded yet.",
+  "adminV2.userFilters": "Search and filters",
+  "adminV2.userFiltersHelp":
+    "Account search and role and status filters are planned for the integrated service.",
+  "adminV2.userAccess": "Account status",
+  "adminV2.userAccessHelp":
+    "Suspension and reactivation require authorized backend APIs. No account changes are available here.",
+  "adminV2.words": "Words",
+  "adminV2.wordsHelp":
+    "A workspace for organizing communication vocabulary and reviewing its text.",
+  "adminV2.pictures": "Pictures",
+  "adminV2.picturesHelp":
+    "A visual library for communication pictures, pending content-management integration.",
+  "adminV2.sounds": "Sounds",
+  "adminV2.soundsHelp":
+    "Organize audio materials associated with communication content.",
+  "adminV2.symbols": "AAC symbols",
+  "adminV2.symbolsHelp":
+    "A workspace for browsing and organizing augmentative and alternative communication symbols.",
+  "adminV2.categories": "Categories",
+  "adminV2.categoriesHelp":
+    "Group content into clear categories once the service is available.",
+  "adminV2.adminDirectory": "Administrator accounts",
+  "adminV2.adminDirectoryHelp":
+    "An administrator directory following the approved equal-permission policy, with no new roles.",
+  "adminV2.invitations": "Admin invitations",
+  "adminV2.invitationsHelp":
+    "Invitation management awaits secure integration. This page does not send invitations.",
+  "adminV2.adminAccess": "Account activation",
+  "adminV2.adminAccessHelp":
+    "A future workspace for deactivation and reactivation. There is no public Admin registration.",
+  "adminV2.auditContext": "Action and participants",
+  "adminV2.auditContextHelp":
+    "Organize the action, its administrator and the account or content it targets.",
+  "adminV2.auditTime": "Timeline",
+  "adminV2.auditTimeHelp":
+    "Show operation timestamps when an authorized administrative log is available. No events are displayed yet.",
+  "adminV2.auditReason": "Decision context",
+  "adminV2.auditReasonHelp":
+    "Present reasons and decision context where appropriate, with no sample audit records.",
+  "adminV2.workspaceSettings": "Administration preferences",
+  "adminV2.workspaceSettingsHelp":
+    "A foundation for settings to be approved later. No platform settings can be saved here.",
+  "adminV2.settingsSafety": "Settings scope",
+  "adminV2.settingsSafetyHelp":
+    "Security, permission and retention policies cannot be changed from this preliminary interface.",
+  "adminV2.verification": "Specialist review preview",
+  "adminV2.secureReviewHelp":
+    "Open the profile to check the private document and review the decision securely.",
+  "adminV2.openSecureReview": "Open review profile",
+  "adminV2.users": "User management",
+  "adminV2.content": "Content studio",
+  "adminV2.admins": "Admin management",
+  "adminV2.audit": "Audit logs",
+  "adminV2.usersHelp":
+    "We are preparing a workspace to manage parent and specialist accounts and review their status.",
+  "adminV2.contentHelp":
+    "A dedicated workspace for organizing words, pictures, sounds and communication symbols is coming soon.",
+  "adminV2.adminsHelp":
+    "We are preparing tools to invite administrators and manage their accounts securely.",
+  "adminV2.auditHelp":
+    "A workspace for reviewing important administrative operations is coming soon.",
+  "adminV2.comingSoon": "Coming soon",
+  "adminV2.inDevelopment": "This section is in development",
+  "adminV2.backOverview": "Back to overview",
+  "adminV2.statistics": "Specialist application statistics",
+  "adminV2.pending": "Awaiting review",
+  "adminV2.approved": "Approved applications",
+  "adminV2.rejected": "Rejected applications",
+  "adminV2.total": "Total applications",
+  "adminV2.totalHelp": "Includes draft applications",
+  "adminV2.pendingHelp": "Ready for a review decision",
+  "adminV2.recordedDecisions": "Recorded review decisions",
+  "adminV2.alerts": "Important Alerts",
+  "adminV2.reviewAlert": "Applications need your decision",
+  "adminV2.reviewAlertHelp":
+    "Review the professional profile and attached document.",
+  "adminV2.noAlerts": "No review alerts at the moment",
+  "adminV2.dataUnavailable": "Unable to load administration data",
+  "adminV2.recent": "Recent specialist requests",
+  "adminV2.recentHelp":
+    "The five most recently submitted applications, newest first.",
+  "adminV2.noRecent": "No submitted applications yet",
+  "adminV2.noRecentHelp":
+    "Applications will appear here when they are submitted for review.",
+  "adminV2.reviewRequest": "Review request",
+  "adminV2.viewRequest": "View request",
   "signature.read": "Professional profile",
   "signature.document": "Qualification document",
   "signature.decide": "Review decision",
@@ -16,7 +117,7 @@ export const en = {
   "admin.workspaceLabel": "Administration workspace",
   "admin.footer": "A considered space to manage Natiq",
   "admin.overviewIntro":
-    "Start with what needs your attention. Make every decision informed.",
+    "Review applications that need your attention and follow platform updates.",
   "admin.priority": "Review priority",
   "admin.pendingTitle": "Specialist applications",
   "admin.waitingReview": "awaiting review",
@@ -72,7 +173,7 @@ export const en = {
   "account.connections": "Connect sign-in methods",
   "account.connectionsHelp":
     "Connect Google or Facebook while signed in to your current account. Your account permissions will stay the same.",
-  "admin.title": "Administration overview",
+  "admin.title": "Welcome to the Natiq admin centre",
   "admin.portal": "Admin portal",
   "admin.navigation": "Admin navigation",
   "admin.workspace": "Workspace",

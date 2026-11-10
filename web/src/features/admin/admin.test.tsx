@@ -6,7 +6,15 @@ import { App } from "../../app/App";
 import { SessionProvider } from "../auth/SessionProvider";
 import { ar } from "../../i18n/ar";
 import { en } from "../../i18n/en";
+import { futureAdminSections } from "./admin-sections";
 
+const dashboard = (pendingCount: number) => ({
+  pendingCount,
+  approvedCount: 0,
+  rejectedCount: 0,
+  totalCount: pendingCount,
+  recentApplications: [],
+});
 let fetchMock: ReturnType<typeof vi.fn>;
 const email = "admin@example.com";
 const token = () =>
@@ -15,7 +23,7 @@ const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status });
 beforeEach(() => {
   vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000");
-  fetchMock = vi.fn().mockResolvedValue(json({ pendingCount: 0 }));
+  fetchMock = vi.fn().mockResolvedValue(json(dashboard(0)));
   vi.stubGlobal("fetch", fetchMock);
 });
 function mount(path = "/admin") {
@@ -129,22 +137,27 @@ it.each([0, 3, 140])(
       .mockResolvedValueOnce(
         json({ account: { email, role: "ADMIN", emailVerified: false } }),
       )
-      .mockResolvedValueOnce(json({ pendingCount }));
+      .mockResolvedValueOnce(json(dashboard(pendingCount)));
     await screen.findByText(email);
     await waitFor(() =>
       expect(
         document.querySelector(".admin-pending-count strong"),
-      ).toHaveTextContent(new Intl.NumberFormat("ar").format(pendingCount)),
+      ).toHaveTextContent(
+        new Intl.NumberFormat("ar", { numberingSystem: "latn" }).format(
+          pendingCount,
+        ),
+      ),
     );
     expect(
       screen.queryByText(ar["admin.accessVerified"]),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: ar["admin.reviewCta"] }),
-    ).toHaveAttribute(
-      "href",
-      "/admin/specialist-applications?status=PENDING_REVIEW",
-    );
+    if (pendingCount > 0)
+      expect(
+        screen.getByRole("link", { name: ar["admin.reviewCta"] }),
+      ).toHaveAttribute(
+        "href",
+        "/admin/specialist-applications?status=PENDING_REVIEW",
+      );
     if (pendingCount === 0)
       expect(screen.getByText(ar["admin.noPending"])).toBeVisible();
   },
@@ -169,7 +182,7 @@ it("announces a loading summary without briefly fabricating an empty queue", asy
   );
   expect(document.querySelector(".admin-pending-count strong")).toBeNull();
   expect(screen.queryByText(ar["admin.noPending"])).not.toBeInTheDocument();
-  resolveSummary(json({ pendingCount: 2 }));
+  resolveSummary(json(dashboard(2)));
   await waitFor(() =>
     expect(document.querySelector(".admin-pending-count")).toHaveAttribute(
       "aria-busy",
@@ -178,7 +191,9 @@ it("announces a loading summary without briefly fabricating an empty queue", asy
   );
   expect(
     document.querySelector(".admin-pending-count strong"),
-  ).toHaveTextContent(new Intl.NumberFormat("ar").format(2));
+  ).toHaveTextContent(
+    new Intl.NumberFormat("ar", { numberingSystem: "latn" }).format(2),
+  );
 });
 
 it("does not show zero when the summary fails and retries without reloading the account", async () => {
@@ -187,17 +202,21 @@ it("does not show zero when the summary fails and retries without reloading the 
   fetchMock
     .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
     .mockResolvedValueOnce(json({}, 503));
-  expect(await screen.findByText(ar["admin.countUnavailable"])).toBeVisible();
+  expect(await screen.findAllByText(ar["admin.countUnavailable"])).toHaveLength(
+    4,
+  );
   expect(document.querySelector(".admin-pending-count strong")).toBeNull();
   expect(screen.getByText(email)).toBeVisible();
-  fetchMock.mockResolvedValueOnce(json({ pendingCount: 8 }));
+  fetchMock.mockResolvedValueOnce(json(dashboard(8)));
   await userEvent.click(
     screen.getByRole("button", { name: ar["session.retry"] }),
   );
   await waitFor(() =>
     expect(
       document.querySelector(".admin-pending-count strong"),
-    ).toHaveTextContent(new Intl.NumberFormat("ar").format(8)),
+    ).toHaveTextContent(
+      new Intl.NumberFormat("ar", { numberingSystem: "latn" }).format(8),
+    ),
   );
   expect(
     fetchMock.mock.calls.filter(([url]) => url.endsWith("/admin/overview")),
@@ -209,8 +228,10 @@ it("rejects a malformed summary without treating it as an empty queue", async ()
   await login();
   fetchMock
     .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
-    .mockResolvedValueOnce(json({ pendingCount: -1 }));
-  expect(await screen.findByText(ar["admin.countUnavailable"])).toBeVisible();
+    .mockResolvedValueOnce(json(dashboard(-1)));
+  expect(await screen.findAllByText(ar["admin.countUnavailable"])).toHaveLength(
+    4,
+  );
   expect(screen.queryByText(ar["admin.noPending"])).not.toBeInTheDocument();
 });
 
@@ -219,7 +240,7 @@ it("keeps one shared Admin layout and switches the single current navigation des
   await login();
   fetchMock
     .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
-    .mockResolvedValueOnce(json({ pendingCount: 0 }));
+    .mockResolvedValueOnce(json(dashboard(0)));
   await screen.findByText(email);
   expect(document.querySelectorAll('nav [aria-current="page"]')).toHaveLength(
     1,
@@ -237,3 +258,72 @@ it("keeps one shared Admin layout and switches the single current navigation des
   ).not.toHaveAttribute("aria-current");
   expect(document.querySelectorAll(".admin-shell")).toHaveLength(1);
 });
+
+it.each(futureAdminSections)(
+  "protects anonymous direct navigation to $path",
+  (section) => {
+    mount(section.path);
+    expect(screen.getByLabelText(ar["auth.email"])).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalled();
+  },
+);
+for (const role of ["PARENT", "SPECIALIST"]) {
+  it.each(futureAdminSections)(
+    `${role} cannot enter $path or request Admin data`,
+    async (section) => {
+      mount(section.path);
+      await login(role);
+      await screen.findByText(email);
+      expect(
+        screen.queryByText(ar["adminV2.inDevelopment"]),
+      ).not.toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
+}
+it.each(futureAdminSections)(
+  "opens the real localized future route $path without a fabricated API",
+  async (section) => {
+    mount();
+    await login();
+    fetchMock.mockResolvedValueOnce(
+      json({ account: { email, role: "ADMIN" } }),
+    );
+    await screen.findByText(email);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    await userEvent.click(
+      screen.getByRole("link", { name: new RegExp("^" + ar[section.title]) }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: ar[section.title], level: 1 }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: new RegExp("^" + ar[section.title]) }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(ar[section.description])).toBeVisible();
+    expect(document.querySelectorAll("nav a")).toHaveLength(7);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "English" }).at(-1)!,
+    );
+    expect(
+      screen.getByRole("heading", { name: en[section.title], level: 1 }),
+    ).toBeVisible();
+    expect(screen.getByText(en[section.description])).toBeVisible();
+    expect(screen.getByText(en["adminV2.frontendOnlyHelp"])).toBeVisible();
+    expect(
+      document.querySelectorAll(".admin-foundation-card").length,
+    ).toBeGreaterThan(0);
+    if (section.path === "/admin/settings") {
+      expect(screen.getByText(en["adminV2.availableNow"])).toBeVisible();
+      expect(localStorage.getItem("natiqaac.locale")).toBe("en");
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    await userEvent.click(
+      screen.getByRole("link", { name: en["adminV2.backOverview"] }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: en["admin.title"], level: 1 }),
+    ).toBeVisible();
+  },
+);

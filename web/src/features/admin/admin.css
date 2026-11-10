@@ -1,13 +1,19 @@
 .admin-shell {
-  --admin-nav: #173f3d;
-  --muted: #4f6363;
+  --admin-nav: #194b49;
+  --primary: #176c69;
+  --primary-hover: #125653;
+  --ink: #203638;
+  --muted: #526568;
+  --admin-clay: #b76e50;
+  --admin-clay-ink: #8a4c35;
+  --admin-clay-surface: #f8eee8;
   --admin-nav-muted: #bed2cc;
   --admin-line: #dfe7e3;
-  --admin-background: #f6f7f3;
+  --admin-background: #f7f8f6;
   --admin-radius: 14px;
   --admin-space: clamp(20px, 3.2vw, 52px);
   --admin-shadow: 0 2px 8px rgb(25 57 48 / 2%);
-  --admin-mint: #e3eee5;
+  --admin-mint: #e8f2ef;
   --admin-caption: 0.875rem;
   --admin-body-size: 1rem;
   --admin-motion: 160ms ease;

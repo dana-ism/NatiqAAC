@@ -7,21 +7,24 @@ import { Mark } from "../../shared/Icons";
 import { useI18n } from "../../i18n/context";
 import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
 import { AdminIcon } from "./AdminIcons";
+import { adminSections } from "./admin-sections";
 import "./admin.css";
+import "./admin-experience-v2.css";
 type Account = { email: string; role: "ADMIN" };
 function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
   return (
     <nav aria-label={t("admin.navigation")}>
       <p className="admin-nav-label">{t("admin.workspace")}</p>
-      <NavLink to="/admin" end onClick={onNavigate}>
-        <AdminIcon name="overview" />
-        {t("admin.overview")}
-      </NavLink>
-      <NavLink to="/admin/specialist-applications" onClick={onNavigate}>
-        <AdminIcon name="applications" />
-        {t("account.applications")}
-      </NavLink>
+      {adminSections.map((section) => (
+        <NavLink key={section.path} to={section.path} end onClick={onNavigate}>
+          <AdminIcon name={section.icon} />
+          <span>{t(section.title)}</span>
+          {section.comingSoon && (
+            <span className="admin-nav-badge">{t("adminV2.comingSoon")}</span>
+          )}
+        </NavLink>
+      ))}
     </nav>
   );
 }
@@ -56,7 +59,9 @@ export function AdminLayout() {
     media.addEventListener("change", resize);
     return () => media.removeEventListener("change", resize);
   }, []);
-  const applications = location.pathname === "/admin/specialist-applications";
+  const currentSection =
+    adminSections.find((section) => section.path === location.pathname) ??
+    adminSections[0];
   useEffect(() => {
     const controller = new AbortController();
     void load
@@ -87,7 +92,9 @@ export function AdminLayout() {
               {t("brand.name")}
               <span className="brand-dot">.</span>
             </strong>
-            <span className="brand-caption">{t("admin.portal")}</span>
+            <span className="brand-caption">
+              NatiqAAC · {t("admin.portal")}
+            </span>
           </span>
         </Link>
         <button
@@ -167,10 +174,17 @@ export function AdminLayout() {
           <div className="admin-breadcrumb">
             <span>{t("admin.portal")}</span>
             <span aria-hidden="true">/</span>
-            <strong>
-              {t(applications ? "account.applications" : "admin.overview")}
-            </strong>
+            <strong>{t(currentSection.title)}</strong>
           </div>
+          {account && (
+            <div className="admin-current-account">
+              <AdminIcon name="shield" />
+              <div>
+                <span>{t("admin.accountTitle")}</span>
+                <bdi>{account.email}</bdi>
+              </div>
+            </div>
+          )}
           <div className="admin-header-actions">
             <LanguageSwitcher />
             <span className="admin-header-divider" aria-hidden="true" />

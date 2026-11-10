@@ -5,6 +5,7 @@ import type {
   ApplicationSummary,
 } from "../account/account.api";
 import { AdminIcon } from "./AdminIcons";
+import { adminNumber } from "./admin-format";
 
 type Props = {
   application: ApplicationDetails & ApplicationSummary;
@@ -184,10 +185,8 @@ export function AdminApplicationDetails({
                       {t("admin.reasonHint")}
                     </p>
                     <p id="reason-length" className="admin-reason-length">
-                      {new Intl.NumberFormat(locale).format(
-                        reason.trim().length,
-                      )}{" "}
-                      / {new Intl.NumberFormat(locale).format(1000)}
+                      {adminNumber(locale, reason.trim().length)} /{" "}
+                      {adminNumber(locale, 1000)}
                     </p>
                   </div>
                 )}

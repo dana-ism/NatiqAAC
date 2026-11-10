@@ -1,5 +1,97 @@
 import { accountAr } from "../features/account/account.messages";
 export const ar = {
+  "adminV2.settings": "الإعدادات",
+  "adminV2.settingsHelp":
+    "اضبط لغة العرض الآن. إعدادات مساحة الإدارة الأخرى قيد التطوير.",
+  "adminV2.availableNow": "متاح الآن",
+  "adminV2.languageSetting": "لغة العرض",
+  "adminV2.languageSettingHelp":
+    "تُحفظ اللغة في هذا المتصفح، وتُطبق على الواجهة مباشرة.",
+  "adminV2.plannedWorkspace": "ما نجهّزه لهذا القسم",
+  "adminV2.frontendOnly": "واجهة تمهيدية",
+  "adminV2.frontendOnlyHelp":
+    "هذه المساحات قيد التطوير. لم تُربط ببيانات أو عمليات إدارية بعد.",
+  "adminV2.inPreparation": "قيد التطوير · غير متاح بعد",
+  "adminV2.userDirectory": "دليل المستخدمين",
+  "adminV2.userDirectoryHelp":
+    "مساحة لقائمة أولياء الأمور والأخصائيين وتفاصيل حساباتهم. لا تُحمّل سجلات حاليًا.",
+  "adminV2.userFilters": "البحث والتصفية",
+  "adminV2.userFiltersHelp":
+    "تجهيز البحث حسب الحساب والتصفية حسب الدور والحالة بعد ربط الخدمة.",
+  "adminV2.userAccess": "حالة الحساب",
+  "adminV2.userAccessHelp":
+    "التعليق وإعادة التفعيل ينتظران واجهات خلفية مصرحًا بها. لا تتوفر عمليات تغيير هنا.",
+  "adminV2.words": "الكلمات",
+  "adminV2.wordsHelp": "مساحة لتنظيم مفردات التواصل ومراجعة نصوصها.",
+  "adminV2.pictures": "الصور",
+  "adminV2.picturesHelp": "مكتبة بصرية لصور التواصل، تنتظر ربط إدارة المحتوى.",
+  "adminV2.sounds": "الأصوات",
+  "adminV2.soundsHelp": "تنظيم المواد الصوتية المرتبطة بمحتوى التواصل.",
+  "adminV2.symbols": "رموز التواصل",
+  "adminV2.symbolsHelp": "مساحة لعرض وتنظيم رموز التواصل المعزّز والبديل.",
+  "adminV2.categories": "التصنيفات",
+  "adminV2.categoriesHelp": "تجميع المحتوى ضمن تصنيفات واضحة عند تفعيل الخدمة.",
+  "adminV2.adminDirectory": "حسابات المسؤولين",
+  "adminV2.adminDirectoryHelp":
+    "دليل للمسؤولين ضمن سياسة الصلاحيات المتساوية المعتمدة، دون إنشاء أدوار جديدة.",
+  "adminV2.invitations": "دعوات الإدارة",
+  "adminV2.invitationsHelp":
+    "إدارة الدعوات تنتظر التكامل الآمن. لا تُرسل دعوات من هذه الصفحة.",
+  "adminV2.adminAccess": "تفعيل الحسابات",
+  "adminV2.adminAccessHelp":
+    "مساحة مستقبلية لمتابعة التعطيل وإعادة التفعيل. لا يوجد تسجيل عام للمسؤولين.",
+  "adminV2.auditContext": "العملية وأطرافها",
+  "adminV2.auditContextHelp":
+    "تنظيم نوع العملية والمسؤول الذي نفّذها والحساب أو المحتوى المستهدف.",
+  "adminV2.auditTime": "التسلسل الزمني",
+  "adminV2.auditTimeHelp":
+    "عرض توقيت العمليات بعد إتاحة سجل إداري مصرح به. لا توجد أحداث معروضة الآن.",
+  "adminV2.auditReason": "سبب الإجراء",
+  "adminV2.auditReasonHelp":
+    "إظهار سياق القرار وأسبابه حيث يلزم، دون سجلات تجريبية.",
+  "adminV2.workspaceSettings": "تفضيلات الإدارة",
+  "adminV2.workspaceSettingsHelp":
+    "مساحة لإعدادات إدارية تُعتمد لاحقًا. لا توجد إعدادات منصة قابلة للحفظ هنا.",
+  "adminV2.settingsSafety": "نطاق الإعدادات",
+  "adminV2.settingsSafetyHelp":
+    "سياسات الأمان والصلاحيات والاحتفاظ بالبيانات لا تُعدّل من هذه الواجهة التمهيدية.",
+  "adminV2.verification": "معاينة طلب أخصائي",
+  "adminV2.secureReviewHelp":
+    "افتح الملف للتحقق من المستند الخاص ومراجعة القرار بأمان.",
+  "adminV2.openSecureReview": "فتح ملف المراجعة",
+  "adminV2.users": "إدارة المستخدمين",
+  "adminV2.content": "استوديو المحتوى",
+  "adminV2.admins": "إدارة المسؤولين",
+  "adminV2.audit": "سجل العمليات",
+  "adminV2.usersHelp":
+    "نعمل على تجهيز مساحة لإدارة حسابات أولياء الأمور والأخصائيين ومتابعة حالتها.",
+  "adminV2.contentHelp":
+    "قريبًا ستتمكن من تنظيم الكلمات والصور والأصوات ورموز التواصل في مكان واحد.",
+  "adminV2.adminsHelp":
+    "نعمل على تجهيز أدوات دعوة المسؤولين وإدارة حساباتهم بأمان.",
+  "adminV2.auditHelp": "قريبًا ستتوفر مساحة لمراجعة العمليات الإدارية المهمة.",
+  "adminV2.comingSoon": "قريبًا",
+  "adminV2.inDevelopment": "هذا القسم قيد التطوير",
+  "adminV2.backOverview": "العودة إلى نظرة عامة",
+  "adminV2.statistics": "إحصاءات طلبات الأخصائيين",
+  "adminV2.pending": "بانتظار المراجعة",
+  "adminV2.approved": "طلبات موافق عليها",
+  "adminV2.rejected": "طلبات مرفوضة",
+  "adminV2.total": "إجمالي الطلبات",
+  "adminV2.totalHelp": "يشمل الطلبات المسوّدة",
+  "adminV2.pendingHelp": "تحتاج قرار المراجعة",
+  "adminV2.recordedDecisions": "قرارات مراجعة محفوظة",
+  "adminV2.alerts": "تنبيهات مهمة",
+  "adminV2.reviewAlert": "طلبات بانتظار قرارك",
+  "adminV2.reviewAlertHelp": "راجع الملف المهني والمستند المرفق.",
+  "adminV2.noAlerts": "لا توجد تنبيهات مراجعة حاليًا",
+  "adminV2.dataUnavailable": "تعذّر تحميل بيانات الإدارة",
+  "adminV2.recent": "أحدث طلبات الأخصائيين",
+  "adminV2.recentHelp": "آخر خمسة طلبات مُرسلة، بدءًا بالأحدث.",
+  "adminV2.noRecent": "لا توجد طلبات مُرسلة بعد",
+  "adminV2.noRecentHelp": "ستظهر هنا الطلبات عند إرسالها للمراجعة.",
+  "adminV2.reviewRequest": "مراجعة الطلب",
+  "adminV2.viewRequest": "عرض الطلب",
   "signature.read": "الملف المهني",
   "signature.document": "مستند المؤهل",
   "signature.decide": "قرار المراجعة",
@@ -13,7 +105,8 @@ export const ar = {
     "راجع المعلومات والمستند قبل اتخاذ القرار. سيُحفظ القرار في سجل الطلب.",
   "admin.workspaceLabel": "مساحة الإدارة",
   "admin.footer": "مساحة واضحة لإدارة ناطق",
-  "admin.overviewIntro": "ابدأ بما يحتاج انتباهك، واتخذ كل قرار على بيّنة.",
+  "admin.overviewIntro":
+    "تابع الطلبات التي تحتاج مراجعتك، واطّلع على مستجدات المنصة.",
   "admin.priority": "أولوية المراجعة",
   "admin.pendingTitle": "طلبات الأخصائيين",
   "admin.waitingReview": "طلب بانتظار المراجعة",
@@ -63,7 +156,7 @@ export const ar = {
   "account.connections": "ربط طرق تسجيل الدخول",
   "account.connectionsHelp":
     "اربط حساب Google أو Facebook بعد تسجيل الدخول إلى حسابك الحالي. لن تتغير صلاحيات حسابك.",
-  "admin.title": "نظرة عامة على الإدارة",
+  "admin.title": "مرحبًا بك في مركز إدارة ناطق",
   "admin.portal": "بوابة الإدارة",
   "admin.navigation": "التنقل الإداري",
   "admin.workspace": "مساحة العمل",
