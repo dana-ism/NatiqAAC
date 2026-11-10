@@ -11,6 +11,9 @@ and [provider configuration](../docs/auth-account-v2-providers.md).
 Existing in-memory sessions, Arabic/English and Admin Portal are preserved.
 No child profiles, password recovery or refresh tokens are implemented.
 
+See the [Signature Admin experience](../docs/admin-signature-experience.md) for the
+refined review workspace, modal mobile navigation and delivery evidence.
+
 ## Start locally
 
 Use Node 24.15+ (verified on 24.22) and the committed npm lockfile. On Windows use `npm.cmd` if PowerShell blocks `npm.ps1`.

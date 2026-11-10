@@ -5,6 +5,7 @@ import { useI18n } from "../../i18n/context";
 import { record } from "../../shared/api";
 import { ErrorAlert } from "../../shared/Feedback";
 import { AdminIcon } from "./AdminIcons";
+import { CommunicationMotif } from "./CommunicationMotif";
 function summary(v: unknown): v is { pendingCount: number } {
   return (
     record(v) &&
@@ -48,6 +49,7 @@ export function AdminPage() {
           className="admin-attention admin-panel"
           aria-labelledby="attention-title"
         >
+          <CommunicationMotif />
           <div className="admin-panel-heading">
             <span className="admin-icon-tile">
               <AdminIcon name="applications" />
@@ -138,7 +140,20 @@ export function AdminPage() {
               <span aria-hidden="true">
                 {new Intl.NumberFormat(locale).format(index + 1)}
               </span>
-              <p>{t(key)}</p>
+              <div>
+                <h3>
+                  {t(
+                    (
+                      [
+                        "signature.read",
+                        "signature.document",
+                        "signature.decide",
+                      ] as const
+                    )[index],
+                  )}
+                </h3>
+                <p>{t(key)}</p>
+              </div>
             </li>
           ))}
         </ol>

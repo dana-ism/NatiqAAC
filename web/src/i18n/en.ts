@@ -2,6 +2,17 @@ import type { Messages } from "./ar";
 import { accountEn } from "../features/account/account.messages";
 
 export const en = {
+  "signature.read": "Professional profile",
+  "signature.document": "Qualification document",
+  "signature.decide": "Review decision",
+  "signature.closeNavigation": "Close navigation",
+  "signature.results": "Displayed results",
+  "signature.of": "of",
+  "signature.loaded": "loaded applications",
+  "signature.pdf": "PDF file · private access",
+  "signature.available": "Document attached",
+  "signature.reviewContext":
+    "Review the profile and document before deciding. Your decision will be recorded in the application history.",
   "admin.workspaceLabel": "Administration workspace",
   "admin.footer": "A considered space to manage Natiq",
   "admin.overviewIntro":

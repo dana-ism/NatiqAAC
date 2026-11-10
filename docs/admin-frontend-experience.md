@@ -1,5 +1,9 @@
 # Admin frontend experience
 
+The subsequent [Signature experience](admin-signature-experience.md) refines this
+implementation. Its mobile modal drawer replaces the inline disclosure described
+below; API contracts and authentication boundaries are preserved.
+
 This feature builds on Authentication V2 at `1feb064`, not on an assumption that
 the dependent Admin/Auth pull requests are already merged. The dedicated branch
 is `feature/admin-frontend-experience`, based on `feature/auth-account-management-v2`.
