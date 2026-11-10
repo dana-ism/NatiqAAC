@@ -9,6 +9,22 @@ import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
 import { AdminIcon } from "./AdminIcons";
 import "./admin.css";
 type Account = { email: string; role: "ADMIN" };
+function Navigation({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useI18n();
+  return (
+    <nav aria-label={t("admin.navigation")}>
+      <p className="admin-nav-label">{t("admin.workspace")}</p>
+      <NavLink to="/admin" end onClick={onNavigate}>
+        <AdminIcon name="overview" />
+        {t("admin.overview")}
+      </NavLink>
+      <NavLink to="/admin/specialist-applications" onClick={onNavigate}>
+        <AdminIcon name="applications" />
+        {t("account.applications")}
+      </NavLink>
+    </nav>
+  );
+}
 function overview(v: unknown): v is { account: Account } {
   return (
     record(v) &&
@@ -27,6 +43,19 @@ export function AdminLayout() {
   const [attempt, setAttempt] = useState(0),
     [navigation, setNavigation] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
+  const drawer = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(min-width: 901px)");
+    function resize() {
+      if (media.matches && drawer.current?.open) {
+        drawer.current.close();
+        setNavigation(false);
+      }
+    }
+    media.addEventListener("change", resize);
+    return () => media.removeEventListener("change", resize);
+  }, []);
   const applications = location.pathname === "/admin/specialist-applications";
   useEffect(() => {
     const controller = new AbortController();
@@ -41,6 +70,7 @@ export function AdminLayout() {
     return () => controller.abort();
   }, [attempt]);
   function closeNavigation() {
+    drawer.current?.close();
     setNavigation(false);
     toggle.current?.focus();
   }
@@ -49,16 +79,7 @@ export function AdminLayout() {
       <a className="skip-link" href="#main">
         {t("layout.skip")}
       </a>
-      <aside
-        className="admin-sidebar"
-        aria-label={t("admin.navigation")}
-        onKeyDown={(e) => {
-          if (e.key === "Escape" && navigation) {
-            e.preventDefault();
-            closeNavigation();
-          }
-        }}
-      >
+      <aside className="admin-sidebar" aria-label={t("admin.navigation")}>
         <Link className="brand" to="/admin">
           <Mark />
           <span>
@@ -74,33 +95,15 @@ export function AdminLayout() {
           className="admin-menu-toggle"
           aria-expanded={navigation}
           aria-controls="admin-navigation"
-          onClick={() => setNavigation(!navigation)}
+          onClick={() => {
+            setNavigation(true);
+            drawer.current?.showModal();
+          }}
         >
           {t("admin.navigation")}
           <AdminIcon name={navigation ? "close" : "menu"} />
         </button>
-        <nav id="admin-navigation" className={navigation ? "is-open" : ""}>
-          <p className="admin-nav-label">{t("admin.workspace")}</p>
-          <NavLink
-            to="/admin"
-            end
-            onClick={() => {
-              if (navigation) closeNavigation();
-            }}
-          >
-            <AdminIcon name="overview" />
-            {t("admin.overview")}
-          </NavLink>
-          <NavLink
-            to="/admin/specialist-applications"
-            onClick={() => {
-              if (navigation) closeNavigation();
-            }}
-          >
-            <AdminIcon name="applications" />
-            {t("account.applications")}
-          </NavLink>
-        </nav>
+        <Navigation />
         <div className="admin-sidebar-footer">
           <AdminIcon name="shield" />
           <span>
@@ -109,6 +112,56 @@ export function AdminLayout() {
           </span>
         </div>
       </aside>
+      <dialog
+        ref={drawer}
+        id="admin-navigation"
+        className="admin-drawer"
+        aria-label={t("admin.navigation")}
+        onKeyDown={(e) => {
+          if (e.key !== "Tab") return;
+          const controls =
+            e.currentTarget.querySelectorAll<HTMLElement>("button, a[href]");
+          const first = controls[0],
+            last = controls[controls.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last?.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first?.focus();
+          }
+        }}
+        onCancel={(e) => {
+          e.preventDefault();
+          closeNavigation();
+        }}
+        onClose={() => setNavigation(false)}
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          if (
+            e.target === e.currentTarget &&
+            (e.clientX < rect.left ||
+              e.clientX > rect.right ||
+              e.clientY < rect.top ||
+              e.clientY > rect.bottom)
+          )
+            closeNavigation();
+        }}
+      >
+        <div className="admin-drawer-heading">
+          <Mark />
+          <strong>{t("brand.name")}</strong>
+          <button
+            autoFocus
+            className="admin-drawer-close"
+            aria-label={t("signature.closeNavigation")}
+            onClick={closeNavigation}
+          >
+            <AdminIcon name="close" />
+          </button>
+        </div>
+        {navigation && <Navigation onNavigate={closeNavigation} />}
+      </dialog>
       <div className="admin-body">
         <header className="admin-header">
           <div className="admin-breadcrumb">

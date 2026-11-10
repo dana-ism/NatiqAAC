@@ -12,6 +12,8 @@ import {
   type ApplicationSummary,
 } from "../account/account.api";
 import { AdminIcon } from "./AdminIcons";
+import { AdminApplicationDetails } from "./AdminApplicationDetails";
+import { CommunicationMotif } from "./CommunicationMotif";
 
 type Details = ApplicationDetails & ApplicationSummary;
 export function AdminApplicationsPage() {
@@ -30,7 +32,7 @@ export function AdminApplicationsPage() {
     [busy, setBusy] = useState(false);
   const [reason, setReason] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(false);
   const locked = useRef(false),
     mounted = useRef(true);
   const heading = useRef<HTMLHeadingElement>(null),
@@ -89,7 +91,7 @@ export function AdminApplicationsPage() {
     locked.current = true;
     setBusy(true);
     setFailure(null);
-    setNotice("");
+    setNotice(false);
     detailController.current?.abort();
     const controller = new AbortController();
     detailController.current = controller;
@@ -134,7 +136,7 @@ export function AdminApplicationsPage() {
       setApplications(null);
       setSelected(null);
       setDecision(null);
-      setNotice(t("account.decided"));
+      setNotice(true);
       setAttempt((n) => n + 1);
     } catch (error) {
       if (mounted.current) setFailure(error);
@@ -203,7 +205,7 @@ export function AdminApplicationsPage() {
       </div>
       {notice && (
         <p className="alert success-alert" role="status">
-          {notice}
+          {t("account.decided")}
         </p>
       )}
       {failure && (
@@ -237,218 +239,86 @@ export function AdminApplicationsPage() {
             <AdminIcon name="arrow" />
             {t("account.back")}
           </button>
-          <article className="admin-panel admin-detail" aria-busy={busy}>
-            <div className="admin-detail-header">
-              <div>
-                <p className="admin-eyebrow">{t("admin.applicant")}</p>
-                <h2 ref={heading} tabIndex={-1}>
-                  {selected.fullName}
-                </h2>
-                <p className="admin-email" dir="ltr">
-                  {selected.email}
-                </p>
-              </div>
-              <span className={`admin-status status-${selected.status}`}>
-                {t(`account.${selected.status}`)}
-              </span>
-            </div>
-            <dl className="admin-detail-grid">
-              <div>
-                <dt>{t("account.specialization")}</dt>
-                <dd>{selected.specialization}</dd>
-              </div>
-              <div>
-                <dt>{t("account.qualification")}</dt>
-                <dd>{selected.qualification}</dd>
-              </div>
-              <div>
-                <dt>{t("admin.submitted")}</dt>
-                <dd>{date(selected.submittedAt)}</dd>
-              </div>
-              <div className="admin-detail-summary">
-                <dt>{t("account.summary")}</dt>
-                <dd>{selected.summary || t("admin.noSummary")}</dd>
-              </div>
-            </dl>
-            <section className="admin-document">
-              <span className="admin-icon-tile">
-                <AdminIcon name="document" />
-              </span>
-              <div>
-                <h3>{t("account.document")}</h3>
-                <p>
-                  {t(
-                    selected.hasDocument
-                      ? "admin.documentPrivate"
-                      : "account.noDocument",
-                  )}
-                </p>
-              </div>
-              {selected.hasDocument && (
-                <button
-                  className="admin-secondary-button"
-                  disabled={busy}
-                  onClick={() => void download()}
-                >
-                  <AdminIcon name="download" />
-                  {t("account.download")}
-                </button>
-              )}
-            </section>
-            {selected.reviews.length > 0 && (
-              <section className="admin-review-history">
-                <h3>{t("admin.reviewHistory")}</h3>
-                {selected.reviews.map((r, i) => (
-                  <div key={i}>
-                    <p>
-                      <span className={`admin-status status-${r.decision}`}>
-                        {r.decision === "APPROVED" || r.decision === "REJECTED"
-                          ? t(`account.${r.decision}`)
-                          : t("admin.reviewHistory")}
-                      </span>{" "}
-                      <time dateTime={r.createdAt}>{date(r.createdAt)}</time>
-                    </p>
-                    {r.reason && <p>{r.reason}</p>}
-                  </div>
-                ))}
-              </section>
-            )}
-            {selected.status === "PENDING_REVIEW" &&
-              (decision ? (
-                <form
-                  className="admin-decision"
-                  onSubmit={(e) => void decide(e)}
-                  aria-busy={busy}
-                >
-                  <h3 ref={confirmHeading} tabIndex={-1}>
-                    {t(
-                      decision === "approve"
-                        ? "account.confirmApprove"
-                        : "account.confirmReject",
-                    )}
-                  </h3>
-                  <p className="admin-decision-target">
-                    {selected.fullName} · <bdi>{selected.email}</bdi>
-                  </p>
-                  <p>{t("admin.confirmTarget")}</p>
-                  {decision === "reject" && (
-                    <div className="field">
-                      <label htmlFor="rejection-reason">
-                        {t("account.reason")}
-                      </label>
-                      <textarea
-                        id="rejection-reason"
-                        required
-                        minLength={10}
-                        maxLength={1000}
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        disabled={busy}
-                        aria-describedby="reason-help"
-                      />
-                      <p id="reason-help" className="field-hint">
-                        {t("admin.reasonHint")}
-                      </p>
-                    </div>
-                  )}
-                  <div className="admin-action-row">
-                    <button
-                      className={
-                        decision === "reject"
-                          ? "admin-danger-button"
-                          : "admin-button"
-                      }
-                      disabled={
-                        busy ||
-                        (decision === "reject" && reason.trim().length < 10)
-                      }
-                    >
-                      {t("account.confirmDecision")}
-                    </button>
-                    <button
-                      className="admin-secondary-button"
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        setDecision(null);
-                        heading.current?.focus();
-                      }}
-                    >
-                      {t("account.cancel")}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="admin-review-actions">
-                  <p>{t("admin.reviewHelp")}</p>
-                  <div className="admin-action-row">
-                    <button
-                      className="admin-button"
-                      disabled={busy}
-                      onClick={() => setDecision("approve")}
-                    >
-                      <AdminIcon name="check" />
-                      {t("account.approve")}
-                    </button>
-                    <button
-                      className="admin-secondary-button admin-reject"
-                      disabled={busy}
-                      onClick={() => setDecision("reject")}
-                    >
-                      {t("account.reject")}
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </article>
+          <AdminApplicationDetails
+            application={selected}
+            busy={busy}
+            decision={decision}
+            reason={reason}
+            heading={heading}
+            confirmHeading={confirmHeading}
+            date={date}
+            onDownload={() => void download()}
+            onDecision={setDecision}
+            onReason={setReason}
+            onSubmit={(e) => void decide(e)}
+          />
         </>
       ) : (
         <>
-          <div className="admin-filters">
-            <div>
-              <label htmlFor="application-search">{t("admin.search")}</label>
-              <div className="admin-search">
-                <AdminIcon name="search" />
-                <input
-                  id="application-search"
-                  type="search"
-                  maxLength={254}
-                  value={search}
-                  placeholder={t("admin.searchPlaceholder")}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+          <div className="admin-list-tools">
+            <div className="admin-filters">
+              <div>
+                <label htmlFor="application-search">{t("admin.search")}</label>
+                <div className="admin-search">
+                  <AdminIcon name="search" />
+                  <input
+                    id="application-search"
+                    type="search"
+                    maxLength={254}
+                    value={search}
+                    placeholder={t("admin.searchPlaceholder")}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="application-status">
+                  {t("admin.filterStatus")}
+                </label>
+                <select
+                  id="application-status"
+                  value={
+                    applicationStates.includes(
+                      filter as (typeof applicationStates)[number],
+                    )
+                      ? filter
+                      : "ALL"
+                  }
+                  onChange={(e) =>
+                    setParams(
+                      e.target.value === "ALL"
+                        ? {}
+                        : { status: e.target.value },
+                      { replace: true },
+                    )
+                  }
+                >
+                  <option value="ALL">{t("admin.allStatuses")}</option>
+                  {applicationStates.map((s) => (
+                    <option key={s} value={s}>
+                      {t(`account.${s}`)}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-            <div>
-              <label htmlFor="application-status">
-                {t("admin.filterStatus")}
-              </label>
-              <select
-                id="application-status"
-                value={
-                  applicationStates.includes(
-                    filter as (typeof applicationStates)[number],
-                  )
-                    ? filter
-                    : "ALL"
-                }
-                onChange={(e) =>
-                  setParams(
-                    e.target.value === "ALL" ? {} : { status: e.target.value },
-                    { replace: true },
-                  )
-                }
-              >
-                <option value="ALL">{t("admin.allStatuses")}</option>
-                {applicationStates.map((s) => (
-                  <option key={s} value={s}>
-                    {t(`account.${s}`)}
-                  </option>
-                ))}
-              </select>
+            <div className="admin-results-bar">
+              <p className="admin-list-limit">{t("admin.listLimit")}</p>
+              {applications && (
+                <p className="admin-result-count" role="status">
+                  {t("signature.results")}:{" "}
+                  <strong>
+                    {new Intl.NumberFormat(locale).format(
+                      displayed?.length ?? 0,
+                    )}
+                  </strong>{" "}
+                  {t("signature.of")}{" "}
+                  {new Intl.NumberFormat(locale).format(applications.length)}{" "}
+                  {t("signature.loaded")}
+                </p>
+              )}
             </div>
           </div>
-          <p className="admin-list-limit">{t("admin.listLimit")}</p>
           {applications === null ? (
             !failure && (
               <div className="admin-loading">
@@ -512,9 +382,7 @@ export function AdminApplicationsPage() {
             </div>
           ) : (
             <section className="admin-empty admin-panel">
-              <span className="admin-icon-tile">
-                <AdminIcon name="applications" />
-              </span>
+              <CommunicationMotif />
               <h2>
                 {t(applications.length ? "admin.noResults" : "account.empty")}
               </h2>

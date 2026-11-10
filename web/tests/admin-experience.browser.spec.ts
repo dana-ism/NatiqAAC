@@ -106,7 +106,9 @@ for (const width of [320, 375, 768, 1024, 1440, 1920])
       await expect(page.locator(".admin-pending-count strong")).toHaveText(
         new Intl.NumberFormat(locale).format(140),
       );
-      await expect(page.locator('nav [aria-current="page"]')).toHaveCount(1);
+      await expect(
+        page.locator('nav:visible [aria-current="page"]'),
+      ).toHaveCount(width <= 900 ? 0 : 1);
       await accessible(page);
       if (width <= 900) {
         const toggle = page.getByRole("button", {
@@ -115,6 +117,29 @@ for (const width of [320, 375, 768, 1024, 1440, 1920])
         });
         await toggle.click();
         await expect(toggle).toHaveAttribute("aria-expanded", "true");
+        const dialog = page.getByRole("dialog", {
+          name: copy["admin.navigation"],
+        });
+        await expect(dialog).toBeVisible();
+        await expect(
+          dialog.getByRole("button", {
+            name: copy["signature.closeNavigation"],
+          }),
+        ).toBeFocused();
+        await page.keyboard.press("Shift+Tab");
+        await expect(
+          dialog.getByRole("link", {
+            name: copy["account.applications"],
+            exact: true,
+          }),
+        ).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(
+          dialog.getByRole("button", {
+            name: copy["signature.closeNavigation"],
+          }),
+        ).toBeFocused();
+        await accessible(page);
         await page.keyboard.press("Escape");
         await expect(toggle).toBeFocused();
         await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -126,14 +151,18 @@ for (const width of [320, 375, 768, 1024, 1440, 1920])
         await page
           .getByRole("button", { name: copy["admin.navigation"], exact: true })
           .click();
-      await expect(page.locator('nav [aria-current="page"]')).toHaveCount(1);
-      await expect(page.locator('nav [aria-current="page"]')).toHaveAttribute(
-        "href",
-        "/admin/specialist-applications",
-      );
+      await expect(
+        page.locator('nav:visible [aria-current="page"]'),
+      ).toHaveCount(1);
+      await expect(
+        page.locator('nav:visible [aria-current="page"]'),
+      ).toHaveAttribute("href", "/admin/specialist-applications");
       if (width <= 900)
         await page
-          .getByRole("button", { name: copy["admin.navigation"], exact: true })
+          .getByRole("button", {
+            name: copy["signature.closeNavigation"],
+            exact: true,
+          })
           .click();
       await page
         .getByLabel(copy["admin.search"], { exact: true })

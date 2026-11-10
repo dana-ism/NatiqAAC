@@ -1,5 +1,16 @@
 import { accountAr } from "../features/account/account.messages";
 export const ar = {
+  "signature.read": "الملف المهني",
+  "signature.document": "مستند المؤهل",
+  "signature.decide": "قرار المراجعة",
+  "signature.closeNavigation": "إغلاق قائمة التنقّل",
+  "signature.results": "نتائج العرض",
+  "signature.of": "من أصل",
+  "signature.loaded": "طلب محمّل",
+  "signature.pdf": "ملف PDF · وصول خاص",
+  "signature.available": "مستند مرفق",
+  "signature.reviewContext":
+    "راجع المعلومات والمستند قبل اتخاذ القرار. سيُحفظ القرار في سجل الطلب.",
   "admin.workspaceLabel": "مساحة الإدارة",
   "admin.footer": "مساحة واضحة لإدارة ناطق",
   "admin.overviewIntro": "ابدأ بما يحتاج انتباهك، واتخذ كل قرار على بيّنة.",
