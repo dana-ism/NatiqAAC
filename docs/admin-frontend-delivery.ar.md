@@ -133,7 +133,7 @@
 
 الفرع: `feature/admin-frontend-experience`، والقاعدة المعتمدة: `feature/auth-account-management-v2` عند `1feb0643250b400043142afbd3038fd45f89644d`. PR #5 يعتمد بدوره على Admin Portal #4؛ كلاهما كان مفتوحًا عند التحقق. أُنشئ worktree مستقل في `C:\Users\user\Desktop\NatiqAAC-admin-experience`، وبقي checkout المستخدم الأصلي و`opencode.json` كما هما.
 
-معرّف التنفيذ ورابط PR ونتيجة الدفع تُثبّت في خطوة التسليم النهائية بعد إنشائهما. لا force-push أو merge تلقائي أو تغيير لقاعدة PR قائم.
+commit التنفيذ: `cdb9e62b05968e4b8281c93e5d2ebc5aafd1b741`. نجح الدفع العادي للفرع، وفُتح [PR #6](https://github.com/dana-ism/NatiqAAC/pull/6) إلى `feature/auth-account-management-v2`. فحص merge-tree مع القاعدة نجح دون تعارض. يضيف commit توثيق لاحق بيانات التسليم هذه؛ لا force-push أو merge تلقائي أو تغيير لقاعدة PR قائم.
 
 ## R. مراجعة الرجوع
 
