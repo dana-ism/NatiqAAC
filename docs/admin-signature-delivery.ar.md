@@ -10,7 +10,7 @@
 
 البرانش الجديد `feature/admin-signature-experience` في worktree مستقل: `C:\Users\user\Desktop\NatiqAAC-admin-signature`. الأساس المتحقق منه `origin/feature/admin-frontend-experience` عند `5169bc86c3ecf8902326265e379c3dbc46c61895`.
 
-عند الاكتشاف كانت PR #6 إلى Auth V2، وPR #5 إلى Admin Portal، وPR #4 إلى main مفتوحة وغير مدمجة. لذلك يستهدف التسليم برانش #6 ولا ينسخ ميزات غير مدمجة إلى main. لم يُعدّل `opencode.json` في المستودع الأصلي. تفاصيل SHA والرابط النهائية في البند 22 بعد إتمام التسليم.
+عند الاكتشاف كانت PR #6 إلى Auth V2، وPR #5 إلى Admin Portal، وPR #4 إلى main مفتوحة وغير مدمجة. لذلك يستهدف [PR #7](https://github.com/dana-ism/NatiqAAC/pull/7) برانش #6 ولا ينسخ ميزات غير مدمجة إلى main. لم يُعدّل `opencode.json` في المستودع الأصلي. تفاصيل SHA والرابط في البند 22.
 
 ## 3. المعمارية والسياق
 
@@ -133,7 +133,7 @@ JWT في الذاكرة كما هو. لا localStorage/sessionStorage للتوك
 
 ## 20. مراجعة الأمان
 
-الخادم هو حد الصلاحيات. لا تغيير لحراس ADMIN أو حالة الحساب أو قواعد القرار، ولا أسرار في المتصفح. المستند عبر backend endpoint موثق، لا public Storage URL. لا role escalation أو وصول جديد لبيانات أطفال. تمرر بيانات صاحب الطلب كنص React، بلا HTML غير آمن. تحقق الملفات المقصودة والأسرار والبيئة يسبق staging والـpush. لا force push أو merge للـPR أو كتابة على main أو عملية قاعدة بيانات مدمرة.
+الخادم هو حد الصلاحيات. لا تغيير لحراس ADMIN أو حالة الحساب أو قواعد القرار، ولا أسرار في المتصفح. المستند عبر backend endpoint موثق، لا public Storage URL. لا role escalation أو وصول جديد لبيانات أطفال. تمرر بيانات صاحب الطلب كنص React، بلا HTML غير آمن. فُحصت 235 من الملفات المتتبعة وغير المتجاهلة مقابل قيم الأسرار المحلية دون طباعة القيم، ولم توجد مطابقات. راجع staging صراحة 48 ملفًا مقصودًا، منها 32 صورة، ونجح diff check. لا environment أو dependencies أو generated artifacts ضمن commit. لا force push أو merge للـPR أو كتابة على main أو عملية قاعدة بيانات مدمرة.
 
 ## 21. الحدود المعروفة
 
@@ -141,7 +141,9 @@ JWT في الذاكرة كما هو. لا localStorage/sessionStorage للتوك
 
 ## 22. تسليم Git
 
-يُستكمل SHA والرابط ونتيجة الدفع بعد مراجعة الفحوص وفرق الملفات. لن يُدمج الـPR تلقائيًا. لا تغييرات في schema أو migrations أو dependencies أو `.env` أو `opencode.json` ضمن هذا التسليم.
+commit التنفيذ: `6e46b277f19fe5299948a8a06e3371ae3139854c`، بعنوان `feat(admin): create the signature review workspace`. دُفع طبيعيًا إلى `origin/feature/admin-signature-experience`، وفُتح [PR #7](https://github.com/dana-ism/NatiqAAC/pull/7)، مفتوح وغير draft، وقاعدته `feature/admin-frontend-experience`. يتبعه commit توثيقي يسجل بيانات التسليم هذه؛ أحدث SHA ظاهر في PR وتاريخ Git.
+
+نجحت محاكاة الدمج المحلية مع القاعدة المجلوبة عبر `git merge-tree --write-tree` دون تعارض. عند إنشاء PR كانت قيمة GitHub mergeable غير محسوبة؛ لا تُعامل المحاكاة المحلية كادعاء عن حالة GitHub أو ضمان ضد تغييرات مستقبلية. لم يُدمج PR أو main ولم يُستخدم force push. لا تغييرات في schema أو migrations أو dependencies أو `.env` أو `opencode.json` ضمن هذا التسليم.
 
 ## 23. دليل الفحص اليدوي
 
