@@ -1,0 +1,224 @@
+{
+  "date": "2026-11-10",
+  "base": "ac54af8f272098e05d6e10668b93b651c4f40e74",
+  "checks": [
+    {
+      "name": "backend-unit",
+      "command": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+      "exitCode": 0,
+      "durationSeconds": 158,
+      "summary": [
+        "Test Suites: 23 passed, 23 total",
+        "Tests:       385 passed, 385 total"
+      ]
+    },
+    {
+      "name": "backend-http",
+      "command": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config test/jest-http.json --runInBand",
+      "exitCode": 0,
+      "durationSeconds": 30,
+      "summary": [
+        "Test Suites: 2 passed, 2 total",
+        "Tests:       49 passed, 49 total"
+      ]
+    },
+    {
+      "name": "backend-typecheck",
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "exitCode": 0,
+      "durationSeconds": 34,
+      "summary": []
+    },
+    {
+      "name": "backend-lint",
+      "command": "node node_modules/oxlint/bin/oxlint --type-aware src/ test/",
+      "exitCode": 0,
+      "durationSeconds": 299,
+      "summary": []
+    },
+    {
+      "name": "backend-format",
+      "command": "node node_modules/prettier/bin/prettier.cjs --check src/**/*.ts test/**/*.ts !src/generated/**",
+      "exitCode": 1,
+      "durationSeconds": 7,
+      "summary": [
+        "Checking formatting...",
+        "[warn] src/auth/account-access.guard.ts",
+        "[warn] src/auth/auth.controller.spec.ts",
+        "[warn] src/auth/guards/jwt-auth.guard.ts",
+        "[warn] src/prisma/prisma.module.ts",
+        "[warn] src/prisma/prisma.service.ts",
+        "[warn] Code style issues found in 5 files. Run Prettier with --write to fix."
+      ]
+    },
+    {
+      "name": "backend-changed-format",
+      "command": "node node_modules/prettier/bin/prettier.cjs --check src/specialist/specialist.controller.ts src/specialist/specialist.service.ts src/specialist/admin-dashboard.spec.ts test/auth.http-spec.ts test/account-v2.e2e-spec.ts",
+      "exitCode": 0,
+      "summary": ["All matched files use Prettier code style!"]
+    },
+    {
+      "name": "backend-build",
+      "command": "node node_modules/@nestjs/cli/bin/nest.js build",
+      "exitCode": 0,
+      "durationSeconds": 25,
+      "summary": []
+    },
+    {
+      "name": "backend-e2e",
+      "command": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config test/jest-e2e.json --runInBand",
+      "exitCode": 0,
+      "durationSeconds": 67,
+      "summary": [
+        "Test Suites: 4 passed, 4 total",
+        "Tests:       16 passed, 16 total"
+      ]
+    },
+    {
+      "name": "backend-redis",
+      "command": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config test/jest-redis.json --runInBand",
+      "exitCode": 0,
+      "durationSeconds": 11,
+      "summary": [
+        "Test Suites: 1 passed, 1 total",
+        "Tests:       21 passed, 21 total"
+      ]
+    },
+    {
+      "name": "web-unit",
+      "command": "node node_modules/vitest/vitest.mjs run",
+      "exitCode": 0,
+      "durationSeconds": 18,
+      "summary": [" Test Files  6 passed (6)", "      Tests  112 passed (112)"]
+    },
+    {
+      "name": "web-typecheck",
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exitCode": 0,
+      "durationSeconds": 6,
+      "summary": []
+    },
+    {
+      "name": "web-lint",
+      "command": "node node_modules/eslint/bin/eslint.js .",
+      "exitCode": 0,
+      "durationSeconds": 8,
+      "summary": []
+    },
+    {
+      "name": "web-format",
+      "command": "node node_modules/prettier/bin/prettier.cjs --check .",
+      "exitCode": 0,
+      "durationSeconds": 2,
+      "summary": [
+        "Checking formatting...",
+        "All matched files use Prettier code style!"
+      ]
+    },
+    {
+      "name": "web-build",
+      "command": "node node_modules/vite/bin/vite.js build",
+      "exitCode": 0,
+      "durationSeconds": 1,
+      "summary": []
+    },
+    {
+      "name": "browser-existing",
+      "command": "node node_modules/@playwright/test/cli.js test --output C:\\Users\\user\\.codex\\artifacts\\admin-v2-20261110/playwright-results",
+      "exitCode": 0,
+      "durationSeconds": 194,
+      "summary": [
+        "  ok 25 tests\\admin-signature.browser.spec.ts:8:3 › Signature ar: recover list and private document errors, reconcile a stale decision (1.4s)",
+        "  ok 27 tests\\admin-signature.browser.spec.ts:8:3 › Signature en: recover list and private document errors, reconcile a stale decision (1.9s)",
+        "  -  68 tests\\real.browser.spec.ts:128:1 › reproduces the missing-CORS connection error without sending a login POST",
+        "  2 skipped",
+        "  66 passed (3.2m)"
+      ]
+    },
+    {
+      "name": "navigation-final",
+      "command": "node node_modules/@playwright/test/cli.js test tests/admin-v2.browser.spec.ts tests/admin-experience.browser.spec.ts tests/admin-zoom.browser.spec.ts",
+      "exitCode": 0,
+      "summary": [
+        "30 passed (1.6m)",
+        "After final badge layout correction: actual overlap assertions, six widths, both locales, all five future sections, real native200% zoom"
+      ]
+    },
+    {
+      "name": "browser-real-isolated",
+      "command": "node node_modules/@playwright/test/cli.js test tests/real.browser.spec.ts --output C:\\Users\\user\\.codex\\artifacts\\admin-v2-20261110/playwright-real-results",
+      "exitCode": 0,
+      "durationSeconds": 33,
+      "summary": [
+        "  -  2 tests\\real.browser.spec.ts:128:1 › reproduces the missing-CORS connection error without sending a login POST",
+        "  1 skipped",
+        "  1 passed (31.5s)"
+      ]
+    }
+  ],
+  "screenshots": {
+    "baseline": 14,
+    "finalSynthetic": 34,
+    "native200Percent": 8,
+    "total": 56
+  },
+  "contrast": [
+    {
+      "name": "Ink on white",
+      "foreground": "#203638",
+      "background": "#ffffff",
+      "ratio": 12.76,
+      "normalTextAA": true
+    },
+    {
+      "name": "Muted on white",
+      "foreground": "#526568",
+      "background": "#ffffff",
+      "ratio": 6.14,
+      "normalTextAA": true
+    },
+    {
+      "name": "White on primary",
+      "foreground": "#ffffff",
+      "background": "#176c69",
+      "ratio": 6.2,
+      "normalTextAA": true
+    },
+    {
+      "name": "White on sidebar",
+      "foreground": "#ffffff",
+      "background": "#194b49",
+      "ratio": 9.79,
+      "normalTextAA": true
+    },
+    {
+      "name": "Clay ink on clay surface",
+      "foreground": "#8a4c35",
+      "background": "#f8eee8",
+      "ratio": 5.81,
+      "normalTextAA": true
+    },
+    {
+      "name": "Priority number on white",
+      "foreground": "#8a4c35",
+      "background": "#ffffff",
+      "ratio": 6.63,
+      "normalTextAA": true
+    },
+    {
+      "name": "Coming soon badge",
+      "foreground": "#e3eeea",
+      "background": "#315f5b",
+      "ratio": 6.06,
+      "normalTextAA": true
+    },
+    {
+      "name": "Active navigation",
+      "foreground": "#194b49",
+      "background": "#e8f2ef",
+      "ratio": 8.57,
+      "normalTextAA": true
+    }
+  ],
+  "scope": "UI mocks plus isolated PostgreSQL/Redis; real OAuth start diagnosis only; no provider authorization"
+}

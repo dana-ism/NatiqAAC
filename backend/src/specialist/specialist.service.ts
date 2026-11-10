@@ -119,6 +119,44 @@ export class SpecialistService {
     return { pendingCount };
   }
 
+  async dashboard() {
+    // One read snapshot keeps metrics and the bounded recent list coherent.
+    return this.prisma.$transaction(
+      async (tx) => {
+        const groups = await tx.specialistApplication.groupBy({
+          by: ['status'],
+          _count: { _all: true },
+        });
+        const count = (status: string) =>
+          groups.find((group) => group.status === status)?._count._all ?? 0;
+        const recent = await tx.specialistApplication.findMany({
+          where: { submittedAt: { not: null }, status: { not: 'DRAFT' } },
+          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+          take: 5,
+          select: {
+            id: true,
+            status: true,
+            specialization: true,
+            qualification: true,
+            submittedAt: true,
+            user: { select: { fullName: true, email: true } },
+          },
+        });
+        return {
+          pendingCount: count('PENDING_REVIEW'),
+          approvedCount: count('APPROVED'),
+          rejectedCount: count('REJECTED'),
+          totalCount: groups.reduce((sum, group) => sum + group._count._all, 0),
+          recentApplications: recent.map(({ user, ...application }) => ({
+            ...application,
+            ...user,
+          })),
+        };
+      },
+      { isolationLevel: 'RepeatableRead' },
+    );
+  }
+
   async list() {
     const applications = await this.prisma.specialistApplication.findMany({
       orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],

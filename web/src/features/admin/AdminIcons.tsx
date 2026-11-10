@@ -1,5 +1,36 @@
 import type { SVGProps } from "react";
 const paths = {
+  settings: (
+    <>
+      <path d="M4 7h2m6 0h8M4 17h8m6 0h2" />
+      <circle cx="9" cy="7" r="3" />
+      <circle cx="15" cy="17" r="3" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5" />
+    </>
+  ),
+  content: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="8" cy="8" r="1.5" />
+      <path d="m3 17 5-5 4 4 4-6 5 7" />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M3 10a9 9 0 1 1 2 8M3 4v6h6M12 7v5l4 2" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="m12 3 10 18H2L12 3Z" />
+      <path d="M12 9v5m0 3h.01" />
+    </>
+  ),
   overview: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="2" />

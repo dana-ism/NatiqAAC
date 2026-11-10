@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-export async function workspace(page: Page, locale: "ar" | "en") {
+import type { AdminDashboard } from "../src/features/admin/admin.api";
+export async function workspace(
+  page: Page,
+  locale: "ar" | "en",
+  entry = "/login",
+) {
   const state = {
     listFails: true,
     documentFails: true,
@@ -7,10 +12,22 @@ export async function workspace(page: Page, locale: "ar" | "en") {
     status: "PENDING_REVIEW",
     lists: 0,
     decisions: 0,
+    dashboardCalls: 0,
+    dashboardFails: false,
+    missingFound: false,
+    holdList: false,
+    releaseList: () => {},
+    dashboard: {
+      pendingCount: 1,
+      approvedCount: 0,
+      rejectedCount: 0,
+      totalCount: 1,
+      recentApplications: [],
+    } as AdminDashboard,
     release: () => {},
   };
-  const application = () => ({
-    id: "synthetic-application",
+  const application = (id = "synthetic-application") => ({
+    id,
     fullName: "Synthetic Specialist",
     email: "specialist@example.com",
     specialization: "Communication",
@@ -69,9 +86,16 @@ export async function workspace(page: Page, locale: "ar" | "en") {
       };
     else if (path === "/admin/overview")
       body = { account: { email: "admin@example.com", role: "ADMIN" } };
-    else if (path.endsWith("/summary")) body = { pendingCount: 1 };
-    else if (path === "/admin/specialist-applications") {
+    else if (path.endsWith("/dashboard")) {
+      state.dashboardCalls++;
+      status = state.dashboardFails ? 503 : 200;
+      body = state.dashboardFails ? {} : state.dashboard;
+    } else if (path === "/admin/specialist-applications") {
       state.lists++;
+      if (state.holdList)
+        await new Promise<void>((resolve) => {
+          state.releaseList = resolve;
+        });
       status = state.listFails ? 503 : 200;
       body = state.listFails ? {} : { applications: [application()] };
     } else if (path.endsWith("/document")) {
@@ -101,13 +125,24 @@ export async function workspace(page: Page, locale: "ar" | "en") {
       }
     } else if (path.endsWith("/synthetic-application"))
       body = { application: application() };
-    else throw new Error(`Unexpected fixture endpoint ${path}`);
+    else if (path.endsWith("/synthetic-recent"))
+      body = { application: application("synthetic-recent") };
+    else if (path.endsWith("/missing")) {
+      status = state.missingFound ? 200 : 404;
+      body = state.missingFound ? { application: application("missing") } : {};
+    } else throw new Error(`Unexpected fixture endpoint ${path}`);
     return route.fulfill({ status, headers, body: JSON.stringify(body) });
   });
-  await page.goto("/login");
+  await page.goto(entry);
   await page.locator("#email").fill("admin@example.com");
   await page.locator("#password").fill("Synthetic123!");
   await page.locator("form button.primary-button").click();
   await page.locator(".admin-pending-count strong").waitFor();
+  if (entry !== "/login") {
+    const menu = page.locator(".admin-menu-toggle");
+    if (await menu.isVisible()) await menu.click();
+    await page.locator(`nav:visible a[href="${entry}"]`).click();
+    await page.locator(".admin-coming-panel").waitFor();
+  }
   return state;
 }

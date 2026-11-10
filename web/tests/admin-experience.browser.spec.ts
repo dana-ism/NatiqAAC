@@ -80,7 +80,14 @@ for (const width of [320, 375, 768, 1024, 1440, 1920])
           };
         else if (path === "/admin/overview")
           body = { account: { email: "admin@example.com", role: "ADMIN" } };
-        else if (path.endsWith("/summary")) body = { pendingCount: 140 };
+        else if (path.endsWith("/dashboard"))
+          body = {
+            pendingCount: 140,
+            approvedCount: 0,
+            rejectedCount: 0,
+            totalCount: 140,
+            recentApplications: [],
+          };
         else if (path === "/admin/specialist-applications")
           body = { applications: [app()] };
         else if (path.endsWith("/synthetic-application"))
@@ -104,7 +111,7 @@ for (const width of [320, 375, 768, 1024, 1440, 1920])
       await page.locator("#password").fill("Synthetic123!");
       await page.locator("form button.primary-button").click();
       await expect(page.locator(".admin-pending-count strong")).toHaveText(
-        new Intl.NumberFormat(locale).format(140),
+        new Intl.NumberFormat(locale, { numberingSystem: "latn" }).format(140),
       );
       await expect(
         page.locator('nav:visible [aria-current="page"]'),
@@ -129,8 +136,7 @@ for (const width of [320, 375, 768, 1024, 1440, 1920])
         await page.keyboard.press("Shift+Tab");
         await expect(
           dialog.getByRole("link", {
-            name: copy["account.applications"],
-            exact: true,
+            name: new RegExp("^" + copy["adminV2.audit"]),
           }),
         ).toBeFocused();
         await page.keyboard.press("Tab");

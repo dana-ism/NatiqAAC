@@ -10,6 +10,8 @@ import { useI18n } from "../i18n/context";
 import { AdminPage } from "../features/admin/AdminPage";
 import { AdminLayout } from "../features/admin/AdminLayout";
 import { AdminApplicationsPage } from "../features/admin/AdminApplicationsPage";
+import { ComingSoonPage } from "../features/admin/ComingSoonPage";
+import { futureAdminSections } from "../features/admin/admin-sections";
 import {
   AccountTypePage,
   ParentRegistrationPage,
@@ -66,8 +68,12 @@ function AppContent() {
     location.pathname === "/home" && session.status === "authenticated";
   useEffect(() => {
     const page = location.pathname;
+    const futureSection = futureAdminSections.find(
+      (section) => section.path === page,
+    );
     const title =
-      page === "/admin/specialist-applications"
+      futureSection?.title ??
+      (page === "/admin/specialist-applications"
         ? "account.applications"
         : page === "/admin"
           ? "admin.title"
@@ -81,7 +87,7 @@ function AppContent() {
                   ? "account.status"
                   : page === "/verify-email" || page === "/verification-pending"
                     ? "account.pending"
-                    : "auth.login";
+                    : "auth.login");
     document.title = `${t(title)} | ${t("brand.name")}`;
   }, [location.pathname, t]);
   useEffect(() => {
@@ -96,6 +102,13 @@ function AppContent() {
       <Routes>
         <Route element={<AdminLayout />}>
           <Route path="/admin" element={<AdminPage />} />
+          {futureAdminSections.map((section) => (
+            <Route
+              key={section.path}
+              path={section.path}
+              element={<ComingSoonPage section={section} />}
+            />
+          ))}
           <Route
             path="/admin/specialist-applications"
             element={<AdminApplicationsPage />}
@@ -155,6 +168,13 @@ function AppContent() {
           path="/admin/specialist-applications"
           element={<ProtectedHome admin />}
         />
+        {futureAdminSections.map((section) => (
+          <Route
+            key={section.path}
+            path={section.path}
+            element={<ProtectedHome admin />}
+          />
+        ))}
         <Route path="/home" element={<ProtectedHome />} />
         <Route path="/admin" element={<ProtectedHome admin />} />
         <Route path="*" element={<Navigate to="/login" replace />} />

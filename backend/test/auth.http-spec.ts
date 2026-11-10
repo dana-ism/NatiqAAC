@@ -63,13 +63,20 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
     recordFailure: jest.fn(),
     finalizeSuccess: jest.fn(),
   };
-  const specialist = { summary: jest.fn() };
+  const specialist = { summary: jest.fn(), dashboard: jest.fn() };
   beforeAll(async () => {
     passwordHash = await hash(password, 12);
   });
   beforeEach(async () => {
     jest.resetAllMocks();
     specialist.summary.mockResolvedValue({ pendingCount: 140 });
+    specialist.dashboard.mockResolvedValue({
+      pendingCount: 140,
+      approvedCount: 12,
+      rejectedCount: 3,
+      totalCount: 159,
+      recentApplications: [],
+    });
     user = {
       legacyAuthExempt: true,
       id,
@@ -153,6 +160,46 @@ describe('Authentication HTTP contract (no external infrastructure)', () => {
       .expect(200);
     expect(result.body).toEqual({ pendingCount: 140 });
     expect(specialist.summary).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    ['ADMIN', 'ACTIVE', 200],
+    ['PARENT', 'ACTIVE', 403],
+    ['SPECIALIST', 'ACTIVE', 403],
+    ['ADMIN', 'SUSPENDED', 401],
+    ['ADMIN', 'PENDING', 401],
+  ] as const)(
+    'protects the new read-only dashboard for current %s/%s',
+    async (role, status, expected) => {
+      user.role = role;
+      user.status = status;
+      const response = await request(app.getHttpServer())
+        .get('/admin/specialist-applications/dashboard')
+        .auth(meToken(jwt, { role: 'ADMIN' }), { type: 'bearer' })
+        .expect(expected);
+      if (expected === 200) {
+        expect(response.body).toEqual({
+          pendingCount: 140,
+          approvedCount: 12,
+          rejectedCount: 3,
+          totalCount: 159,
+          recentApplications: [],
+        });
+        expect(specialist.dashboard).toHaveBeenCalledTimes(1);
+      } else expect(specialist.dashboard).not.toHaveBeenCalled();
+    },
+  );
+  it('denies anonymous and onboarding tokens before querying dashboard data', async () => {
+    user.role = 'ADMIN';
+    await request(app.getHttpServer())
+      .get('/admin/specialist-applications/dashboard')
+      .expect(401);
+    await request(app.getHttpServer())
+      .get('/admin/specialist-applications/dashboard')
+      .auth(meToken(jwt, { role: 'ADMIN', purpose: 'onboarding' }), {
+        type: 'bearer',
+      })
+      .expect(401);
+    expect(specialist.dashboard).not.toHaveBeenCalled();
   });
   it.each(['PARENT', 'SPECIALIST'])(
     'denies a stale Admin claim when the current role is %s',

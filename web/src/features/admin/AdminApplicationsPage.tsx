@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useSession } from "../auth/session-context";
 import { useI18n } from "../../i18n/context";
@@ -14,6 +14,7 @@ import {
 import { AdminIcon } from "./AdminIcons";
 import { AdminApplicationDetails } from "./AdminApplicationDetails";
 import { CommunicationMotif } from "./CommunicationMotif";
+import { adminDate, adminNumber } from "./admin-format";
 
 type Details = ApplicationDetails & ApplicationSummary;
 export function AdminApplicationsPage() {
@@ -22,6 +23,7 @@ export function AdminApplicationsPage() {
     api = useRef(session);
   const [params, setParams] = useSearchParams();
   const filter = params.get("status") ?? "ALL";
+  const requestedApplication = params.get("application");
   const [search, setSearch] = useState("");
   const [applications, setApplications] = useState<ApplicationSummary[] | null>(
     null,
@@ -38,6 +40,7 @@ export function AdminApplicationsPage() {
   const heading = useRef<HTMLHeadingElement>(null),
     confirmHeading = useRef<HTMLHeadingElement>(null);
   const returnId = useRef<string | null>(null);
+  const restoreListFocus = useRef(false);
   const detailController = useRef<AbortController | null>(null);
   useEffect(() => {
     mounted.current = true;
@@ -64,12 +67,13 @@ export function AdminApplicationsPage() {
   }, [attempt]);
   useEffect(() => {
     if (selected) heading.current?.focus();
-    else if (returnId.current && applications) {
+    else if (restoreListFocus.current && applications) {
       const target =
-        document.getElementById(returnId.current) ??
+        (returnId.current ? document.getElementById(returnId.current) : null) ??
         document.getElementById("admin-applications-heading");
       target?.focus();
       returnId.current = null;
+      restoreListFocus.current = false;
     }
   }, [selected, applications]);
   useEffect(() => {
@@ -77,17 +81,19 @@ export function AdminApplicationsPage() {
   }, [decision]);
   const date = (value: string | null) =>
     value && Number.isFinite(Date.parse(value))
-      ? new Intl.DateTimeFormat(locale === "ar" ? "ar-PS" : "en-GB", {
-          dateStyle: "medium",
-        }).format(new Date(value))
+      ? adminDate(locale, value)
       : t("admin.notSubmitted");
   function refresh() {
     setApplications(null);
     setFailure(null);
     setAttempt((n) => n + 1);
   }
-  async function details(id: string) {
-    if (locked.current) return;
+  const details = useCallback(async (id: string, replaceRead = false) => {
+    if (locked.current) {
+      // A new deep link may replace a read, never an in-flight decision/download.
+      if (!replaceRead || !detailController.current) return;
+      detailController.current.abort();
+    }
     locked.current = true;
     setBusy(true);
     setFailure(null);
@@ -95,6 +101,7 @@ export function AdminApplicationsPage() {
     detailController.current?.abort();
     const controller = new AbortController();
     detailController.current = controller;
+    if (replaceRead) setSelected(null);
     try {
       const v = await api.current.authenticatedGet(
         `/admin/specialist-applications/${encodeURIComponent(id)}`,
@@ -109,9 +116,33 @@ export function AdminApplicationsPage() {
     } catch (e) {
       if (mounted.current && !controller.signal.aborted) setFailure(e);
     } finally {
-      locked.current = false;
-      if (mounted.current) setBusy(false);
+      if (detailController.current === controller) {
+        detailController.current = null;
+        locked.current = false;
+        if (mounted.current) setBusy(false);
+      }
     }
+  }, []);
+  useEffect(() => {
+    // Defer route-driven reads until the requested location is committed.
+    let current = true;
+    void Promise.resolve().then(() => {
+      if (current && requestedApplication)
+        void details(requestedApplication, true);
+    });
+    return () => {
+      current = false;
+    };
+  }, [requestedApplication, details]);
+  function clearRequestedApplication() {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete("application");
+        return next;
+      },
+      { replace: true },
+    );
   }
   async function decide(e: React.FormEvent) {
     e.preventDefault();
@@ -133,9 +164,11 @@ export function AdminApplicationsPage() {
       );
       if (!mounted.current) return;
       // A confirmed mutation invalidates the displayed snapshot. Fetch the actual list.
+      restoreListFocus.current = true;
       setApplications(null);
       setSelected(null);
       setDecision(null);
+      clearRequestedApplication();
       setNotice(true);
       setAttempt((n) => n + 1);
     } catch (error) {
@@ -214,9 +247,17 @@ export function AdminApplicationsPage() {
           <button
             className="admin-text-button"
             disabled={busy}
-            onClick={() => (selected ? void details(selected.id) : refresh())}
+            onClick={() =>
+              selected || requestedApplication
+                ? void details(selected?.id ?? requestedApplication!)
+                : refresh()
+            }
           >
-            {t(selected ? "admin.refreshDetails" : "session.retry")}
+            {t(
+              selected || requestedApplication
+                ? "admin.refreshDetails"
+                : "session.retry",
+            )}
           </button>
         </div>
       )}
@@ -231,9 +272,11 @@ export function AdminApplicationsPage() {
             className="admin-back admin-text-button"
             disabled={busy}
             onClick={() => {
+              restoreListFocus.current = true;
               setSelected(null);
               setDecision(null);
               setFailure(null);
+              clearRequestedApplication();
             }}
           >
             <AdminIcon name="arrow" />
@@ -307,13 +350,8 @@ export function AdminApplicationsPage() {
               {applications && (
                 <p className="admin-result-count" role="status">
                   {t("signature.results")}:{" "}
-                  <strong>
-                    {new Intl.NumberFormat(locale).format(
-                      displayed?.length ?? 0,
-                    )}
-                  </strong>{" "}
-                  {t("signature.of")}{" "}
-                  {new Intl.NumberFormat(locale).format(applications.length)}{" "}
+                  <strong>{adminNumber(locale, displayed?.length ?? 0)}</strong>{" "}
+                  {t("signature.of")} {adminNumber(locale, applications.length)}{" "}
                   {t("signature.loaded")}
                 </p>
               )}

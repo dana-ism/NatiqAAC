@@ -5,6 +5,7 @@ import axe from "axe-core";
 import { workspace } from "./admin.fixture";
 import { ar } from "../src/i18n/ar";
 import { en } from "../src/i18n/en";
+import { futureAdminSections } from "../src/features/admin/admin-sections";
 
 async function check(page: Page) {
   await page.addScriptTag({ content: axe.source });
@@ -91,6 +92,27 @@ for (const locale of ["ar", "en"] as const) {
         }),
       ).toBeFocused();
       await check(page);
+      for (const section of futureAdminSections) {
+        await page
+          .getByRole("button", { name: copy["admin.navigation"], exact: true })
+          .click();
+        await page
+          .getByRole("link", { name: new RegExp("^" + copy[section.title]) })
+          .click();
+        await expect(
+          page.getByRole("heading", {
+            name: copy[section.title],
+            level: 1,
+            exact: true,
+          }),
+        ).toBeVisible();
+        await check(page);
+        if (section.path === "/admin/users")
+          await screenshot(
+            page,
+            info.outputPath(`zoom-${locale}-coming-soon.png`),
+          );
+      }
     } finally {
       await context.close();
     }
