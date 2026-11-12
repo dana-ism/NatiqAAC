@@ -189,7 +189,10 @@ CRLF في 26 ملفًا غير معدل؛ أثبتت المقارنة مع HEAD 
 الفرع `feature/auth-onboarding-ux-v3`، من canonical commit
 `857ba00ee852e2bfa962ff2370081c80eb998ac6`. الأساس البعيد المتوافق
 `feature/oauth-provider-activation` صاحب PR #9، لا main.
-تُضاف نتيجة الالتزام والرفع ورابط PR بعد المراجعة النهائية. لا دمج تلقائي.
+التزام التنفيذ المراجع: `ffb1b77b91ea2322894c70b9a50931f325cc2f74`.
+رُفع الفرع إلى origin وفُتح [PR #10](https://github.com/dana-ism/NatiqAAC/pull/10)
+ضد `feature/oauth-provider-activation`، دون دمج أو force-push. تُسجّل بيانات
+التسليم هذه بالتزام توثيق لاحق مستقل، دون تغيير كود التنفيذ.
 بقي `opencode.json` غير المتتبع خارج العمل والالتزام، ولم تُغيّر worktrees الأخرى.
 
 ## 22. تحقق المالك اليدوي
