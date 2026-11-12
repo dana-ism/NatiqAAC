@@ -1,5 +1,8 @@
 # Authentication
 
+For the latest registration, verification and specialist eligibility changes, see
+[Authentication and onboarding V3](auth-onboarding-v3.md).
+
 ## Scope and implementation status
 
 Parent registration, password login and protected current-user access are implemented in the NestJS backend. Redis-backed account protection and IP throttling are mandatory for registration/login. Integration against PostgreSQL/Redis must be verified in isolated infrastructure before merge.

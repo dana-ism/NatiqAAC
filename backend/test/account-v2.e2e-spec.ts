@@ -27,6 +27,10 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
   let redis: RedisClientType;
   const previousOrigin = process.env.PUBLIC_WEB_ORIGIN;
   const run = randomUUID();
+  let testScope = 0;
+  beforeEach(() => {
+    testScope++;
+  });
   const ids = new Set<string>();
   const emails = new Set<string>();
   const keys = new Set<string>();
@@ -70,7 +74,7 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
       block: number,
       name: string,
     ) {
-      const scoped = `${run}:${key}`;
+      const scoped = `${run}:${testScope}:${key}`;
       const stored = `_throttler:{${scoped}}:${name}`;
       keys.add(stored);
       keys.add(`${stored}:block`);
@@ -224,6 +228,7 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
         fullName: 'Synthetic summary fixture',
         role: 'SPECIALIST' as const,
         status: 'ACTIVE' as const,
+        emailVerifiedAt: new Date(),
       };
     });
     await prisma.user.createMany({ data: owners });
@@ -275,6 +280,7 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
         fullName: 'Synthetic dashboard applicant',
         role: 'SPECIALIST' as const,
         status: 'ACTIVE' as const,
+        emailVerifiedAt: new Date(),
       };
     });
     await prisma.user.createMany({ data: owners });
@@ -410,6 +416,15 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
     await resend(parent.email.toUpperCase()).expect(({ body }) =>
       expect(body).toEqual(generic),
     );
+    for (
+      let i = 0;
+      i < 100 &&
+      messages.filter(
+        (m) => m.email === parent.email && m.rendered.text.includes('#token='),
+      ).length < 2;
+      i++
+    )
+      await new Promise((resolve) => setTimeout(resolve, 10));
     const rotated = latestToken(parent.email);
     expect(rotated).not.toBe(parent.token);
     expect(
@@ -422,6 +437,10 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
     await resend(syntheticEmail('absent')).expect(({ body }) =>
       expect(body).toEqual(generic),
     );
+    await request(app.getHttpServer())
+      .post('/auth/email/resend-verification')
+      .send({ email: parent.email })
+      .expect(429);
     await verify(parent.token).expect(400);
     await verify(rotated).expect(200);
   });
@@ -433,7 +452,7 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
     await request(app.getHttpServer())
       .post('/specialist/application/submit')
       .auth(pending, { type: 'bearer' })
-      .expect(403);
+      .expect(409);
     await verify(specialist.token).expect(200);
     await request(app.getHttpServer())
       .post('/specialist/application/submit')
@@ -490,6 +509,178 @@ describe('Account V2 HTTP workflows on isolated PostgreSQL and Redis', () => {
         })
       ).status,
     ).toBe('ACCEPTED');
+  });
+
+  it('saves a complete unverified application privately, then verification promotes it exactly once across devices', async () => {
+    const specialist = await register('specialist', 'preverification');
+    const pending = (await login(specialist.email)).body
+      .onboarding_token as string;
+    await request(app.getHttpServer())
+      .post('/specialist/application/document')
+      .auth(pending, { type: 'bearer' })
+      .attach('document', pdf, 'qualification.pdf')
+      .expect(200);
+    await request(app.getHttpServer())
+      .post('/specialist/application/submit')
+      .auth(pending, { type: 'bearer' })
+      .expect(200);
+    const draft = await prisma.specialistApplication.findUniqueOrThrow({
+      where: { userId: specialist.id },
+    });
+    expect(draft.status).toBe('DRAFT');
+    expect(draft.submittedAt).not.toBeNull();
+    const baseline = (
+      await bearerGet(
+        '/admin/specialist-applications/dashboard',
+        adminToken,
+      ).expect(200)
+    ).body;
+    const list = (
+      await bearerGet('/admin/specialist-applications', adminToken).expect(200)
+    ).body;
+    expect(
+      list.applications.some((a: { id: string }) => a.id === draft.id),
+    ).toBe(false);
+    await bearerGet(
+      `/admin/specialist-applications/${draft.id}`,
+      adminToken,
+    ).expect(404);
+    await bearerGet(
+      `/admin/specialist-applications/${draft.id}/document`,
+      adminToken,
+    ).expect(404);
+    await request(app.getHttpServer())
+      .post(`/admin/specialist-applications/${draft.id}/approve`)
+      .auth(adminToken, { type: 'bearer' })
+      .expect(409);
+    const verified = await Promise.all([
+      verify(specialist.token),
+      verify(specialist.token),
+    ]);
+    expect(verified.map((r) => r.status).sort((a, b) => a - b)).toEqual([
+      200, 400,
+    ]);
+    expect(
+      (await bearerGet('/auth/onboarding/me', pending).expect(200)).body
+        .emailVerified,
+    ).toBe(true);
+    expect(
+      (
+        await prisma.specialistApplication.findUniqueOrThrow({
+          where: { id: draft.id },
+        })
+      ).status,
+    ).toBe('PENDING_REVIEW');
+    const after = (
+      await bearerGet(
+        '/admin/specialist-applications/dashboard',
+        adminToken,
+      ).expect(200)
+    ).body;
+    expect(after.pendingCount).toBe(baseline.pendingCount + 1);
+    expect(after.totalCount).toBe(baseline.totalCount + 1);
+    await bearerGet(
+      `/admin/specialist-applications/${draft.id}`,
+      adminToken,
+    ).expect(200);
+    expect(
+      await prisma.mailDelivery.count({
+        where: { eventKey: `application:${draft.id}` },
+      }),
+    ).toBe(1);
+    await bearerGet('/auth/me', pending).expect(401);
+  });
+
+  it('serializes verification against submission without losing intent or submitting untouched drafts', async () => {
+    const specialist = await register('specialist', 'submit-verify-race');
+    const pending = (await login(specialist.email)).body
+      .onboarding_token as string;
+    await request(app.getHttpServer())
+      .post('/specialist/application/document')
+      .auth(pending, { type: 'bearer' })
+      .attach('document', pdf, 'qualification.pdf')
+      .expect(200);
+    const results = await Promise.all([
+      verify(specialist.token),
+      request(app.getHttpServer())
+        .post('/specialist/application/submit')
+        .auth(pending, { type: 'bearer' }),
+    ]);
+    expect(results.map((r) => r.status)).toEqual([200, 200]);
+    const application = await prisma.specialistApplication.findUniqueOrThrow({
+      where: { userId: specialist.id },
+    });
+    expect(application.status).toBe('PENDING_REVIEW');
+    expect(
+      await prisma.mailDelivery.count({
+        where: { eventKey: `application:${application.id}` },
+      }),
+    ).toBe(1);
+    const untouched = await register('specialist', 'untouched-draft');
+    await verify(untouched.token).expect(200);
+    expect(
+      (
+        await prisma.specialistApplication.findUniqueOrThrow({
+          where: { userId: untouched.id },
+        })
+      ).status,
+    ).toBe('DRAFT');
+  });
+
+  it('verifies an existing legacy mailbox on explicit resend without revoking its access exemption', async () => {
+    const email = syntheticEmail('legacy-verification');
+    const user = await prisma.user.create({
+      data: {
+        fullName: 'Synthetic Legacy Specialist',
+        email,
+        role: 'SPECIALIST',
+        legacyAuthExempt: true,
+        passwordHash: await hash(password, 12),
+        specialistApplication: {
+          create: { specialization: 'Synthetic', qualification: 'Synthetic' },
+        },
+      },
+    });
+    ids.add(user.id);
+    const access = (await login(email)).body.access_token as string;
+    await bearerGet('/auth/me', access).expect(200);
+    const attempts = await Promise.all(
+      [0, 1].map(() =>
+        request(app.getHttpServer())
+          .post('/auth/email/resend-verification')
+          .send({ email })
+          .expect(200),
+      ),
+    );
+    expect(attempts[0].body).toEqual(attempts[1].body);
+    for (
+      let i = 0;
+      i < 100 &&
+      !messages.some(
+        (m) => m.email === email && m.rendered.text.includes('#token='),
+      );
+      i++
+    )
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    await verify(latestToken(email)).expect(200);
+    const current = await prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+    });
+    expect(current.legacyAuthExempt).toBe(true);
+    expect(current.emailVerifiedAt).not.toBeNull();
+    await bearerGet('/auth/me', access).expect(200);
+    expect(
+      (
+        await prisma.specialistApplication.findUniqueOrThrow({
+          where: { userId: user.id },
+        })
+      ).status,
+    ).toBe('DRAFT');
+    expect(
+      messages.filter(
+        (m) => m.email === email && m.rendered.text.includes('#token='),
+      ),
+    ).toHaveLength(1);
   });
 
   it('allows one PostgreSQL review winner under simultaneous approval/rejection and preserves the matching access state', async () => {

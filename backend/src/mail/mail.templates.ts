@@ -102,8 +102,8 @@ function copy(input: MailTemplateInput): TemplateCopy {
             : 'We received a request to create a NatiqAAC account using this email address. Verify your email to complete this registration step.',
         action: ar ? 'تأكيد البريد الإلكتروني' : 'Verify email address',
         note: ar
-          ? `تنتهي صلاحية هذا الرابط خلال ${input.expiresInMinutes} دقيقة، ويمكن استخدامه مرة واحدة. لا تشارك الرابط مع أي شخص. إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان.`
-          : `This link expires in ${input.expiresInMinutes} minutes and can be used once. Do not share it with anyone. If you did not make this request, you can safely ignore this email.`,
+          ? `تنتهي صلاحية هذا الرابط خلال ${input.expiresInMinutes === 1440 ? '24 ساعة' : `${input.expiresInMinutes} دقيقة`}، ويمكن استخدامه مرة واحدة. لا تشارك الرابط مع أي شخص. إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان.`
+          : `This link expires in ${input.expiresInMinutes === 1440 ? '24 hours' : `${input.expiresInMinutes} minutes`} and can be used once. Do not share it with anyone. If you did not make this request, you can safely ignore this email.`,
       };
     }
     case 'welcome':
@@ -187,7 +187,7 @@ export function renderMailTemplate(input: MailTemplateInput): RenderedMail {
 <p style="margin:0 0 24px;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background-color:#176b68;color:#ffffff;padding:14px 22px;border-radius:8px;text-decoration:none;font-size:16px;font-weight:bold;line-height:1.5;">${escapeHtml(content.action)}</a></p>
 <p style="margin:0 0 24px;font-size:14px;line-height:1.8;color:#5e7073;">${escapeHtml(content.note)}</p>
 <p style="margin:0 0 8px;font-size:14px;line-height:1.8;">${fallback}</p>
-<p dir="ltr" style="margin:0;font-size:13px;line-height:1.8;word-break:break-all;overflow-wrap:anywhere;"><a href="${escapeHtml(actionUrl)}" style="color:#176b68;">${escapeHtml(actionUrl)}</a></p>
+<p dir="ltr" style="margin:0;font-size:14px;line-height:1.8;word-break:break-all;overflow-wrap:anywhere;"><a href="${escapeHtml(actionUrl)}" style="color:#176b68;">${escapeHtml(actionUrl)}</a></p>
 </td></tr></table></td></tr></table></body></html>`;
   return {
     subject: `NatiqAAC — ${content.title}`,

@@ -1,5 +1,10 @@
 # NatiqAAC
 
+Authentication/onboarding V3 improves traditional and provider registration,
+verification and specialist review eligibility. See the
+[V3 flow and compatibility guide](docs/auth-onboarding-v3.md) and
+[Arabic delivery report](docs/auth-onboarding-v3-delivery.ar.md).
+
 NatiqAAC is a mobile application designed to support communication and language learning for children with autism.
 
 ## Project Goals

@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { hash } from 'bcrypt';
@@ -16,12 +17,13 @@ import {
 } from '../mail/mail.templates';
 import { EmailDomainService } from './email-domain.service';
 import { normalizeEmail } from './normalize-email';
+import { promoteSubmittedApplication } from '../specialist/application-transition';
 import {
   ParentRegistrationDto,
   SpecialistRegistrationDto,
 } from './dto/account.dto';
 
-export const VERIFICATION_TTL_MS = 60 * 60 * 1000;
+export const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 export const VERIFICATION_COOLDOWN_MS = 60 * 1000;
 const RETRYABLE_NOTIFICATION_KINDS = [
   'welcome',
@@ -155,44 +157,51 @@ export class AccountLifecycleService {
   async verify(token: string) {
     const origin = this.publicOrigin();
     const digest = tokenHash(token);
-    const user = await this.prisma.$transaction(async (tx) => {
-      const challenge = await tx.emailVerification.findUnique({
-        where: { tokenHash: digest },
-      });
-      if (!challenge)
-        throw new BadRequestException(
-          'Verification link is invalid or expired',
-        );
-      const now = new Date();
-      const consumed = await tx.emailVerification.updateMany({
-        where: {
-          userId: challenge.userId,
-          tokenHash: digest,
-          consumedAt: null,
-          expiresAt: { gt: now },
-        },
-        data: { consumedAt: now },
-      });
-      if (consumed.count !== 1)
-        throw new BadRequestException(
-          'Verification link is invalid or expired',
-        );
-      const verified = await tx.user.update({
-        where: { id: challenge.userId },
-        data: { emailVerifiedAt: now },
-      });
-      if (verified.role === 'PARENT')
-        await tx.mailDelivery.upsert({
-          where: { eventKey: `welcome:${verified.id}` },
-          create: {
-            userId: verified.id,
-            eventKey: `welcome:${verified.id}`,
-            kind: 'welcome',
-          },
-          update: {},
+    const { user, applicationId } = await this.prisma.$transaction(
+      async (tx) => {
+        const challenge = await tx.emailVerification.findUnique({
+          where: { tokenHash: digest },
         });
-      return verified;
-    });
+        if (!challenge)
+          throw new BadRequestException(
+            'Verification link is invalid or expired',
+          );
+        await tx.$queryRaw`SELECT id FROM users WHERE id = ${challenge.userId}::uuid FOR UPDATE`;
+        const now = new Date();
+        const consumed = await tx.emailVerification.updateMany({
+          where: {
+            userId: challenge.userId,
+            tokenHash: digest,
+            consumedAt: null,
+            expiresAt: { gt: now },
+          },
+          data: { consumedAt: now },
+        });
+        if (consumed.count !== 1)
+          throw new BadRequestException(
+            'Verification link is invalid or expired',
+          );
+        const verified = await tx.user.update({
+          where: { id: challenge.userId },
+          data: { emailVerifiedAt: now },
+        });
+        if (verified.role === 'PARENT')
+          await tx.mailDelivery.upsert({
+            where: { eventKey: `welcome:${verified.id}` },
+            create: {
+              userId: verified.id,
+              eventKey: `welcome:${verified.id}`,
+              kind: 'welcome',
+            },
+            update: {},
+          });
+        const applicationId =
+          verified.role === 'SPECIALIST'
+            ? await promoteSubmittedApplication(tx, verified.id)
+            : null;
+        return { user: verified, applicationId };
+      },
+    );
     if (user.role === 'PARENT')
       await this.notify(
         user,
@@ -200,11 +209,21 @@ export class AccountLifecycleService {
         `welcome:${user.id}`,
         `${origin}/login`,
       );
+    if (applicationId)
+      await this.notify(
+        user,
+        'application-received',
+        `application:${applicationId}`,
+        `${origin}/application-status`,
+      );
     return { message: 'Email verified successfully' };
   }
 
   async resend(emailInput: string) {
     const origin = this.publicOrigin();
+    // Global configuration failure has the same result for every supplied email.
+    if (!this.mailer.isConfigured())
+      throw new ServiceUnavailableException('Email service is unavailable');
     const generic = {
       message: 'If verification is needed, an email will be requested',
     };
@@ -216,30 +235,67 @@ export class AccountLifecycleService {
     });
     if (users.length !== 1) return generic;
     const user = users[0];
-    if (
-      user.emailVerifiedAt ||
-      user.legacyAuthExempt ||
-      user.status !== 'ACTIVE'
-    )
-      return generic;
+    if (user.emailVerifiedAt || user.status !== 'ACTIVE') return generic;
     const token = randomBytes(32).toString('base64url');
     const digest = tokenHash(token);
     const now = new Date();
-    const rotated = await this.prisma.emailVerification.updateMany({
-      where: { userId: user.id, consumedAt: null, resendAfter: { lte: now } },
-      data: {
-        tokenHash: digest,
-        expiresAt: new Date(now.getTime() + VERIFICATION_TTL_MS),
-        resendAfter: new Date(now.getTime() + VERIFICATION_COOLDOWN_MS),
-      },
-    });
-    if (rotated.count === 1)
-      await this.notify(
-        user,
-        'verification-resend',
-        `verify:${digest}`,
-        `${origin}/verify-email#token=${token}`,
-      );
+    // Legacy accounts may not have a challenge. Create one on explicit resend,
+    // without backfilling verification evidence or changing their access exemption.
+    let created = false;
+    try {
+      const challenge = await this.prisma.emailVerification.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          tokenHash: digest,
+          expiresAt: new Date(now.getTime() + VERIFICATION_TTL_MS),
+          resendAfter: new Date(now.getTime() + VERIFICATION_COOLDOWN_MS),
+        },
+        update: {},
+      });
+      created = challenge.tokenHash === digest;
+    } catch (error) {
+      // Concurrent first requests can race on Prisma's read/create upsert path.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      )
+        return generic;
+      throw error;
+    }
+    const rotated = created
+      ? { count: 1 }
+      : await this.prisma.emailVerification.updateMany({
+          where: {
+            userId: user.id,
+            consumedAt: null,
+            resendAfter: { lte: now },
+          },
+          data: {
+            tokenHash: digest,
+            expiresAt: new Date(now.getTime() + VERIFICATION_TTL_MS),
+            resendAfter: new Date(now.getTime() + VERIFICATION_COOLDOWN_MS),
+          },
+        });
+    if (rotated.count === 1) {
+      await this.prisma.mailDelivery.upsert({
+        where: { eventKey: `verify:${digest}` },
+        create: {
+          userId: user.id,
+          eventKey: `verify:${digest}`,
+          kind: 'verification-resend',
+        },
+        update: {},
+      });
+      setImmediate(() => {
+        void this.notify(
+          user,
+          'verification-resend',
+          `verify:${digest}`,
+          `${origin}/verify-email#token=${token}`,
+        );
+      });
+    }
     return generic;
   }
 
@@ -321,7 +377,7 @@ export class AccountLifecycleService {
     try {
       const input: MailTemplateInput =
         kind === 'verification' || kind === 'verification-resend'
-          ? { ...base, kind, expiresInMinutes: 60 }
+          ? { ...base, kind, expiresInMinutes: VERIFICATION_TTL_MS / 60_000 }
           : { ...base, kind };
       await this.mailer.send(user.email, renderMailTemplate(input));
     } catch {

@@ -7,12 +7,12 @@ import {
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSession } from "../auth/session-context";
-import { validate, type FieldErrors } from "../auth/validation";
+import { RegistrationPage } from "./RegistrationPage";
 import { useI18n } from "../../i18n/context";
 import { ErrorAlert, Loading } from "../../shared/Feedback";
+import { ApiError } from "../../shared/api";
 import "./account.css";
 export { AdminApplicationsPage } from "../admin/AdminApplicationsPage";
-import { SocialButtons } from "./SocialButtons";
 import { useAccountCopy } from "./account.messages";
 import {
   accountApi,
@@ -62,191 +62,55 @@ export function ParentRegistrationPage() {
 export function SpecialistRegistrationPage() {
   return <RegistrationPage specialist />;
 }
-function RegistrationPage({ specialist }: { specialist: boolean }) {
-  const { t, locale } = useI18n();
-  const c = useAccountCopy();
-  const navigate = useNavigate();
-  const [values, setValues] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    specialization: "",
-    qualification: "",
-    summary: "",
-  });
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<unknown>(null);
-  const [visible, setVisible] = useState(false);
-  const form = useRef<HTMLFormElement>(null);
-  const controller = useRef<AbortController | null>(null);
-  useEffect(() => () => controller.current?.abort(), []);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (busy) return;
-    const next = validate(values, true);
-    setErrors(next);
-    if (Object.keys(next).length) {
-      form.current
-        ?.querySelector<HTMLInputElement>(`[name="${Object.keys(next)[0]}"]`)
-        ?.focus();
-      return;
-    }
-    setBusy(true);
-    setFailure(null);
-    controller.current = new AbortController();
-    try {
-      const result = await accountApi.register(
-        specialist ? "specialist" : "parent",
-        {
-          fullName: values.fullName.trim(),
-          email: values.email.trim().toLowerCase(),
-          password: values.password,
-          locale,
-          ...(specialist
-            ? {
-                specialization: values.specialization.trim(),
-                qualification: values.qualification.trim(),
-                ...(values.summary.trim()
-                  ? { summary: values.summary.trim() }
-                  : {}),
-              }
-            : {}),
-        },
-        controller.current.signal,
-      );
-      navigate("/verification-pending", {
-        replace: true,
-        state: {
-          email: values.email.trim().toLowerCase(),
-          emailSent: result.verification.emailSent,
-        },
-      });
-    } catch (error) {
-      if (!controller.current.signal.aborted) setFailure(error);
-    } finally {
-      if (!controller.current.signal.aborted) setBusy(false);
-    }
-  }
-  function field(
-    name: keyof typeof values,
-    label: string,
-    type = "text",
-    maxLength = 200,
-  ) {
-    const error = errors[name as keyof FieldErrors];
-    return (
-      <div className="field">
-        <label htmlFor={`register-${name}`}>{label}</label>
-        <div className="input-wrap">
-          <input
-            id={`register-${name}`}
-            name={name}
-            type={name === "password" && visible ? "text" : type}
-            value={values[name]}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, [name]: e.target.value }))
-            }
-            maxLength={maxLength}
-            minLength={
-              name === "specialization" || name === "qualification"
-                ? 2
-                : undefined
-            }
-            required
-            disabled={busy}
-            dir={name === "email" || name === "password" ? "ltr" : "auto"}
-            autoComplete={
-              name === "fullName"
-                ? "name"
-                : name === "email"
-                  ? "email"
-                  : name === "password"
-                    ? "new-password"
-                    : undefined
-            }
-            aria-invalid={!!error}
-            aria-describedby={
-              error
-                ? `${name}-error`
-                : name === "password"
-                  ? "password-help"
-                  : undefined
-            }
-          />
-        </div>
-        {error && (
-          <p className="field-error" id={`${name}-error`} role="alert">
-            {t(error)}
-          </p>
-        )}
-      </div>
-    );
-  }
-  return (
-    <Card title={c(specialist ? "account.specialist" : "account.parent")}>
-      <p className="form-intro">{c("account.pendingHelp")}</p>
-      <ErrorAlert error={failure} context="register" />
-      <form ref={form} onSubmit={(e) => void submit(e)} aria-busy={busy}>
-        {field("fullName", t("auth.fullName"), "text", 100)}
-        {field("email", t("auth.email"), "email", 254)}
-        {field("password", t("auth.password"), "password", 72)}
-        <p className="field-hint" id="password-help">
-          {t("auth.passwordHint")}
-        </p>
-        <button
-          className="text-button"
-          type="button"
-          aria-pressed={visible}
-          onClick={() => setVisible(!visible)}
-        >
-          {t(visible ? "auth.hidePassword" : "auth.showPassword")}
-        </button>
-        {specialist && (
-          <>
-            {field("specialization", c("account.specialization"), "text", 160)}
-            {field("qualification", c("account.qualification"))}
-            <div className="field">
-              <label htmlFor="summary">{c("account.summary")}</label>
-              <textarea
-                id="summary"
-                value={values.summary}
-                maxLength={2000}
-                disabled={busy}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, summary: e.target.value }))
-                }
-              />
-            </div>
-          </>
-        )}
-        <button className="primary-button" disabled={busy}>
-          {busy ? t("auth.creating") : c("account.apply")}
-        </button>
-      </form>
-      <SocialButtons
-        intent="register"
-        role={specialist ? "SPECIALIST" : "PARENT"}
-        registration={{
-          fullName: values.fullName,
-          email: values.email,
-          specialization: values.specialization,
-          qualification: values.qualification,
-          summary: values.summary,
-          locale,
-        }}
-      />
-      <p className="switch-copy">
-        <Link to="/login">{t("auth.signInLink")}</Link>
-      </p>
-    </Card>
-  );
-}
-
 export function VerificationPendingPage() {
   const c = useAccountCopy();
   const { t, locale } = useI18n();
   const location = useLocation();
+  const session = useSession();
+  const navigate = useNavigate();
+  const lock = useRef(false);
+  const [check, setCheck] = useState<
+    "idle" | "checking" | "pending" | "verified"
+  >("idle");
+  const [until, setUntil] = useState<number>(
+    typeof location.state?.cooldownUntil === "number"
+      ? location.state.cooldownUntil
+      : 0,
+  );
+  const [now, setNow] = useState(() => Date.now());
+  const remaining = Math.max(0, Math.ceil((until - now) / 1000));
+  useEffect(() => {
+    if (!until) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [until]);
+  async function checkVerified() {
+    if (lock.current) return;
+    if (session.status !== "onboarding" && session.status !== "authenticated") {
+      navigate("/login");
+      return;
+    }
+    lock.current = true;
+    setCheck("checking");
+    setFailure(null);
+    setDone(false);
+    try {
+      const me = await session.authenticatedGet(
+        "/auth/onboarding/me",
+        onboardingResult,
+      );
+      if (me.emailVerified) {
+        if (me.role === "SPECIALIST")
+          navigate("/application-status", { replace: true });
+        else setCheck("verified");
+      } else setCheck("pending");
+    } catch (error) {
+      setFailure(error);
+      setCheck("idle");
+    } finally {
+      lock.current = false;
+    }
+  }
   const [email, setEmail] = useState(
     typeof location.state?.email === "string" ? location.state.email : "",
   );
@@ -255,28 +119,80 @@ export function VerificationPendingPage() {
   const [failure, setFailure] = useState<unknown>(null);
   async function resend(e: FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (lock.current || Date.now() < until) return;
+    lock.current = true;
     setBusy(true);
     setFailure(null);
     setDone(false);
     try {
-      await accountApi.resend(email.trim().toLowerCase(), locale);
+      await accountApi.resend(
+        (session.identity?.email ?? email).trim().toLowerCase(),
+        locale,
+      );
       setDone(true);
+      setUntil(Date.now() + 60_000);
+      setNow(Date.now());
     } catch (error) {
       setFailure(error);
+      if (error instanceof ApiError && error.status === 429) {
+        setUntil(
+          Date.now() + Math.max(60, error.retryAfterSeconds ?? 60) * 1000,
+        );
+        setNow(Date.now());
+      }
     } finally {
       setBusy(false);
+      lock.current = false;
     }
   }
   return (
     <Card title={c("account.pending")}>
       <p className="form-intro">{c("account.pendingHelp")}</p>
+      <p className="field-hint">{c("account.expiry")}</p>
+      {location.state?.setupError && (
+        <p role="alert" className="alert info-alert">
+          {c("account.setupIncomplete")}
+        </p>
+      )}
       {location.state?.emailSent === false && (
         <p role="status" className="alert info-alert">
           {c("account.notSent")}
         </p>
       )}
       <ErrorAlert error={failure} />
+      {check === "pending" && (
+        <p role="status" className="alert info-alert">
+          {c("account.stillPending")}
+        </p>
+      )}
+      {check === "verified" ? (
+        <>
+          <p role="status" className="alert success-alert">
+            {c("account.verified")}
+          </p>
+          <button
+            className="primary-button"
+            onClick={() => {
+              session.signOut();
+              navigate("/login");
+            }}
+          >
+            {t("auth.signInLink")}
+          </button>
+        </>
+      ) : (
+        <button
+          className="primary-button"
+          disabled={busy || check === "checking"}
+          onClick={() => void checkVerified()}
+        >
+          {check === "checking" ? t("auth.wait") : c("account.checkVerified")}
+        </button>
+      )}
+      {session.status !== "onboarding" &&
+        session.status !== "authenticated" && (
+          <p className="field-hint">{c("account.signInToCheck")}</p>
+        )}
       {done && (
         <p role="status" className="alert success-alert">
           {c("account.resendDone")}
@@ -293,18 +209,34 @@ export function VerificationPendingPage() {
               maxLength={254}
               required
               autoComplete="email"
-              value={email}
+              value={session.identity?.email ?? email}
+              readOnly={!!session.identity?.email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={busy}
             />
           </div>
         </div>
-        <button className="primary-button" disabled={busy}>
+        <button
+          className="text-button"
+          disabled={busy || check === "checking" || remaining > 0}
+        >
           {busy ? t("auth.wait") : c("account.resend")}
         </button>
       </form>
+      {remaining > 0 && (
+        <p className="field-hint" aria-live="off">
+          {t("account.cooldown", { seconds: remaining })}
+        </p>
+      )}
+      {session.identity?.role === "SPECIALIST" && (
+        <p className="switch-copy">
+          <Link to="/application-status">{c("account.completeProfile")}</Link>
+        </p>
+      )}
       <p className="switch-copy">
-        <Link to="/login">{t("auth.signInLink")}</Link>
+        <Link to="/login" onClick={() => session.signOut()}>
+          {t("auth.signInLink")}
+        </Link>
       </p>
     </Card>
   );
@@ -314,8 +246,10 @@ export function VerificationPendingPage() {
 // user action consumes the token; opening the link alone performs no API call.
 export function VerificationResultPage() {
   const c = useAccountCopy();
+  const session = useSession();
   const { t } = useI18n();
   const token = useRef<string | null>(null);
+  const lock = useRef(false);
   useEffect(() => {
     const value = new URLSearchParams(window.location.hash.slice(1)).get(
       "token",
@@ -332,12 +266,13 @@ export function VerificationResultPage() {
   const [failure, setFailure] = useState<unknown>(null);
   const [missing, setMissing] = useState(false);
   async function verify() {
-    if (busy || done) return;
+    if (lock.current || done) return;
     if (!token.current) {
       setMissing(true);
       return;
     }
     setBusy(true);
+    lock.current = true;
     setFailure(null);
     try {
       await accountApi.verify(token.current);
@@ -347,12 +282,19 @@ export function VerificationResultPage() {
       setFailure(error);
     } finally {
       setBusy(false);
+      lock.current = false;
     }
   }
   return (
     <Card title={c("account.pending")}>
       <p className="form-intro">{c("account.confirmHelp")}</p>
-      <ErrorAlert error={failure} />
+      {failure instanceof ApiError && failure.status === 400 ? (
+        <p role="alert" className="alert error-alert">
+          {c("account.invalidLink")}
+        </p>
+      ) : (
+        <ErrorAlert error={failure} />
+      )}
       {missing && <p role="alert">{c("account.invalidLink")}</p>}
       {done ? (
         <p className="alert success-alert" role="status">
@@ -369,7 +311,9 @@ export function VerificationResultPage() {
       )}
       <p className="switch-copy">
         <Link to="/verification-pending">{c("account.resend")}</Link> ·{" "}
-        <Link to="/login">{t("auth.signInLink")}</Link>
+        <Link to="/login" onClick={() => session.signOut()}>
+          {t("auth.signInLink")}
+        </Link>
       </p>
     </Card>
   );
@@ -379,6 +323,7 @@ export function ApplicationStatusPage() {
   const c = useAccountCopy();
   const { t } = useI18n();
   const session = useAccountSession();
+  const location = useLocation();
   const api = useRef(session);
   const [onboarding, setOnboarding] = useState<Onboarding | null>(null);
   const [application, setApplication] = useState<ApplicationDetails | null>(
@@ -390,6 +335,7 @@ export function ApplicationStatusPage() {
   const [notice, setNotice] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState(false);
+  const actionLock = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
     void (async () => {
@@ -418,7 +364,7 @@ export function ApplicationStatusPage() {
     return () => controller.abort();
   }, [attempt]);
   async function action(upload: boolean) {
-    if (busy) return;
+    if (actionLock.current) return;
     setFailure(null);
     setNotice("");
     if (
@@ -429,6 +375,7 @@ export function ApplicationStatusPage() {
       return;
     }
     setBusy(true);
+    actionLock.current = true;
     try {
       if (upload) {
         const form = new FormData();
@@ -436,22 +383,38 @@ export function ApplicationStatusPage() {
         await api.current.uploadDocument(form);
         setNotice(c("account.uploaded"));
       } else {
-        await api.current.authenticatedPost(
+        const result = await api.current.authenticatedPost(
           "/specialist/application/submit",
           {},
           messageResult,
         );
-        setNotice(c("account.submitted"));
+        setNotice(
+          c(
+            result.message === "Application saved; email verification required"
+              ? "account.savedPending"
+              : "account.submitted",
+          ),
+        );
       }
       setAttempt((n) => n + 1);
     } catch (error) {
       setFailure(error);
     } finally {
       setBusy(false);
+      actionLock.current = false;
     }
   }
+  const canSignIn =
+    session.status === "onboarding" &&
+    onboarding?.emailVerified &&
+    (onboarding.role === "PARENT" || application?.status === "APPROVED");
   return (
     <Card title={c("account.status")}>
+      {location.state?.setupError && (
+        <p role="alert" className="alert info-alert">
+          {c("account.setupIncomplete")}
+        </p>
+      )}
       <ErrorAlert error={failure} />
       {!!failure && (
         <button
@@ -474,12 +437,12 @@ export function ApplicationStatusPage() {
         <>
           <p className="form-intro">
             {c(
-              onboarding.emailVerified || onboarding.legacyAuthExempt
+              onboarding.emailVerified
                 ? "account.emailVerified"
                 : "account.emailNeeded",
             )}
           </p>
-          {!onboarding.emailVerified && !onboarding.legacyAuthExempt && (
+          {!onboarding.emailVerified && (
             <Link
               to="/verification-pending"
               state={{ email: onboarding.email }}
@@ -487,10 +450,29 @@ export function ApplicationStatusPage() {
               {c("account.resend")}
             </Link>
           )}
+          {!onboarding.emailVerified && (
+            <button
+              className={
+                application?.submittedAt ? "primary-button" : "text-button"
+              }
+              disabled={busy}
+              onClick={() => {
+                setFailure(null);
+                setNotice("");
+                setAttempt((n) => n + 1);
+              }}
+            >
+              {c("account.checkVerified")}
+            </button>
+          )}
           {application ? (
             <>
               <p className="alert info-alert" role="status">
-                {c(`account.${application.status}`)}
+                {c(
+                  application.status === "DRAFT" && application.submittedAt
+                    ? "account.savedPending"
+                    : `account.${application.status}`,
+                )}
               </p>
               <dl>
                 <dt>{c("account.specialization")}</dt>
@@ -503,55 +485,74 @@ export function ApplicationStatusPage() {
               )}
               {application.status === "DRAFT" && (
                 <>
-                  <label htmlFor="qualification-document">
-                    {c("account.document")}
-                  </label>
-                  <p className="field-hint" id="document-help">
-                    {c("account.documentHelp")}
-                  </p>
+                  {!application.hasDocument && (
+                    <>
+                      <label htmlFor="qualification-document">
+                        {c("account.document")}
+                      </label>
+                      <p className="field-hint" id="document-help">
+                        {c("account.documentHelp")}
+                      </p>
+                    </>
+                  )}
                   {application.hasDocument && (
                     <p>{c("account.documentPresent")}</p>
                   )}
-                  <input
-                    id="qualification-document"
-                    type="file"
-                    accept="application/pdf"
-                    aria-describedby="document-help"
-                    disabled={busy}
-                    onChange={(e) => {
-                      setFile(e.target.files?.[0] ?? null);
-                      setFileError(false);
-                    }}
-                  />
-                  {fileError && <p role="alert">{c("account.fileInvalid")}</p>}
-                  <button
-                    className="primary-button"
-                    disabled={busy || !file}
-                    onClick={() => void action(true)}
-                  >
-                    {c("account.upload")}
-                  </button>
-                  <button
-                    className="primary-button"
-                    disabled={
-                      busy ||
-                      !application.hasDocument ||
-                      !(onboarding.emailVerified || onboarding.legacyAuthExempt)
-                    }
-                    onClick={() => void action(false)}
-                  >
-                    {c("account.submit")}
-                  </button>
+                  {!application.hasDocument && (
+                    <>
+                      <input
+                        id="qualification-document"
+                        type="file"
+                        accept="application/pdf"
+                        aria-describedby="document-help"
+                        disabled={busy}
+                        onChange={(e) => {
+                          setFile(e.target.files?.[0] ?? null);
+                          setFileError(false);
+                        }}
+                      />
+                      {fileError && (
+                        <p role="alert">{c("account.fileInvalid")}</p>
+                      )}
+                      <button
+                        className="primary-button"
+                        disabled={busy || !file}
+                        onClick={() => void action(true)}
+                      >
+                        {c("account.upload")}
+                      </button>
+                    </>
+                  )}
+                  {!application.submittedAt && (
+                    <button
+                      className="primary-button"
+                      disabled={
+                        busy ||
+                        !application.hasDocument ||
+                        !!application.submittedAt
+                      }
+                      onClick={() => void action(false)}
+                    >
+                      {c("account.submit")}
+                    </button>
+                  )}
                 </>
               )}
             </>
-          ) : (
+          ) : onboarding.emailVerified && session.status === "onboarding" ? (
+            <p className="alert success-alert" role="status">
+              {c("account.verified")}
+            </p>
+          ) : session.status === "authenticated" ? (
             <Link to="/home">{t("title.home")}</Link>
-          )}
+          ) : null}
         </>
       )}
-      <button className="text-button" onClick={session.signOut}>
-        {t("home.signOut")}
+      <button
+        className={canSignIn ? "primary-button" : "text-button"}
+        onClick={session.signOut}
+      >
+        {t(canSignIn ? "auth.signInLink" : "home.signOut")}
       </button>
     </Card>
   );

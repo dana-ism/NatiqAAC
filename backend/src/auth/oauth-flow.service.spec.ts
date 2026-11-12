@@ -52,7 +52,7 @@ describe('OAuthFlowService', () => {
           if (!stored || stored.expires <= Date.now()) return null;
           const value = JSON.parse(stored.raw) as Record<string, unknown>;
           if (value[options.arguments[0]] !== options.arguments[1]) return null;
-          records.delete(options.keys[0]);
+          if (options.arguments[2] !== 'peek') records.delete(options.keys[0]);
           return stored.raw;
         },
       ),
@@ -161,6 +161,25 @@ describe('OAuthFlowService', () => {
     await expect(service.finish(id, verifier)).resolves.toMatchObject({
       identity,
     });
+  });
+  it('requires browser proof for preview, preserves expiry and single-use finish', async () => {
+    const start = await begin();
+    const id = await service.callback('GOOGLE', 'code', start.state);
+    await expect(service.preview(id, 'x'.repeat(43))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    const before = [...records.values()][0].expires;
+    await expect(service.preview(id, verifier)).resolves.toMatchObject({
+      identity,
+    });
+    await expect(service.preview(id, verifier)).resolves.toMatchObject({
+      identity,
+    });
+    expect([...records.values()][0].expires).toBe(before);
+    await service.finish(id, verifier);
+    await expect(service.preview(id, verifier)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
   it('permits exactly one concurrent callback and finish', async () => {
     const start = await begin();

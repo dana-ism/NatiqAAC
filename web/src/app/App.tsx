@@ -29,7 +29,16 @@ function ProtectedHome({ admin = false }: { admin?: boolean }) {
   if (session.status === "anonymous")
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   if (session.status === "onboarding")
-    return <Navigate to="/application-status" replace />;
+    return (
+      <Navigate
+        to={
+          session.identity?.role === "PARENT"
+            ? "/verification-pending"
+            : "/application-status"
+        }
+        replace
+      />
+    );
   if (session.status === "checking") return <Loading />;
   if (session.status === "unavailable")
     return (
@@ -120,6 +129,7 @@ function AppContent() {
   }
   return (
     <Layout
+      onboarding={!welcome && !location.pathname.startsWith("/admin")}
       welcome={welcome}
       afterContent={welcome ? <FeaturePreview /> : undefined}
     >
@@ -144,6 +154,9 @@ function AppContent() {
             ) : session.status === "checking" ||
               session.status === "unavailable" ? (
               <ProtectedHome />
+            ) : session.status === "onboarding" &&
+              session.identity?.role === "PARENT" ? (
+              <Navigate to="/verification-pending" replace />
             ) : (
               <ApplicationStatusPage />
             )

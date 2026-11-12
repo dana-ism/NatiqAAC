@@ -38,13 +38,17 @@ const GENERIC = {
 
 describe('AccountLifecycleService with isolated database/mail substitutes', () => {
   const tx = {
+    $queryRaw: jest.fn(),
+    specialistApplication: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     emailVerification: { findUnique: jest.fn(), updateMany: jest.fn() },
     user: { update: jest.fn() },
     mailDelivery: { upsert: jest.fn() },
   };
   const prisma = {
     user: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn() },
-    emailVerification: { updateMany: jest.fn() },
+    emailVerification: { updateMany: jest.fn(), upsert: jest.fn() },
     mailDelivery: {
       upsert: jest.fn(),
       updateMany: jest.fn(),
@@ -60,6 +64,7 @@ describe('AccountLifecycleService with isolated database/mail substitutes', () =
 
   beforeEach(() => {
     jest.resetAllMocks();
+    tx.specialistApplication.updateMany.mockResolvedValue({ count: 0 });
     warning = jest
       .spyOn(Logger.prototype, 'warn')
       .mockImplementation(() => undefined);
@@ -88,6 +93,9 @@ describe('AccountLifecycleService with isolated database/mail substitutes', () =
       status: 'PENDING',
     });
     prisma.emailVerification.updateMany.mockResolvedValue({ count: 1 });
+    prisma.emailVerification.upsert.mockResolvedValue({
+      tokenHash: 'existing-digest',
+    });
     tx.emailVerification.findUnique.mockResolvedValue({
       userId: ACCOUNT.id,
       tokenHash: tokenHash(TOKEN),
@@ -106,6 +114,7 @@ describe('AccountLifecycleService with isolated database/mail substitutes', () =
   afterEach(() => jest.restoreAllMocks());
 
   it('registers normalized identity with bcrypt, hashed expiring token and explicit safe response', async () => {
+    expect(VERIFICATION_TTL_MS).toBe(86_400_000);
     const before = Date.now();
     const result = await service.register(DTO, 'PARENT');
     expect(domains.validateForRegistration).toHaveBeenCalledWith(DTO.email);
@@ -327,11 +336,11 @@ describe('AccountLifecycleService with isolated database/mail substitutes', () =
   });
 
   it('returns the same resend response for absent/ambiguous/ineligible users without mutation', async () => {
+    mailer.isConfigured.mockReturnValue(true);
     for (const users of [
       [],
       [ACCOUNT, ACCOUNT],
       [{ ...ACCOUNT, emailVerifiedAt: new Date() }],
-      [{ ...ACCOUNT, legacyAuthExempt: true }],
       [{ ...ACCOUNT, status: 'SUSPENDED' }],
     ]) {
       prisma.user.findMany.mockResolvedValueOnce(users);
@@ -346,8 +355,39 @@ describe('AccountLifecycleService with isolated database/mail substitutes', () =
     expect(prisma.emailVerification.updateMany).not.toHaveBeenCalled();
     expect(mailer.send).not.toHaveBeenCalled();
   });
+  it('reports globally unavailable mail identically without looking up any supplied account', async () => {
+    for (const email of ['absent@institution.ps', ACCOUNT.email]) {
+      await expect(service.resend(email)).rejects.toThrow(
+        'Email service is unavailable',
+      );
+    }
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
+    expect(prisma.emailVerification.updateMany).not.toHaveBeenCalled();
+  });
+  it('creates a real mailbox challenge for an active unverified legacy owner without changing exemptions', async () => {
+    mailer.isConfigured.mockReturnValue(true);
+    prisma.user.findMany.mockResolvedValue([
+      { ...ACCOUNT, legacyAuthExempt: true },
+    ]);
+    prisma.emailVerification.upsert.mockImplementation(
+      ({ create }: { create: { tokenHash: string } }) =>
+        Promise.resolve(create),
+    );
+    await expect(service.resend(ACCOUNT.email)).resolves.toEqual(GENERIC);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(mailer.send).toHaveBeenCalledTimes(1);
+    const token = mailer.send.mock.calls[0][1].text.match(
+      /#token=([A-Za-z0-9_-]{43})/u,
+    )![1] as string;
+    expect(
+      prisma.emailVerification.upsert.mock.calls[0][0].create.tokenHash,
+    ).toBe(tokenHash(token));
+    expect(prisma.emailVerification.updateMany).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
 
   it('honors resend cooldown atomically without sending or revealing account state', async () => {
+    mailer.isConfigured.mockReturnValue(true);
     prisma.emailVerification.updateMany.mockResolvedValue({ count: 0 });
     await expect(service.resend(ACCOUNT.email)).resolves.toEqual(GENERIC);
     expect(prisma.emailVerification.updateMany).toHaveBeenCalledWith({
@@ -368,6 +408,7 @@ describe('AccountLifecycleService with isolated database/mail substitutes', () =
   it('rotates resend token and sends only the new raw token while persisting its digest', async () => {
     mailer.isConfigured.mockReturnValue(true);
     await expect(service.resend(ACCOUNT.email)).resolves.toEqual(GENERIC);
+    await new Promise((resolve) => setImmediate(resolve));
     const update = prisma.emailVerification.updateMany.mock.calls[0][0];
     const rendered = mailer.send.mock.calls[0][1];
     const raw = rendered.text.match(

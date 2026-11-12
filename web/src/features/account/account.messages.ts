@@ -1,6 +1,39 @@
 import { useI18n } from "../../i18n/context";
 
 export const accountEn = {
+  "account.confirmPassword": "Confirm password",
+  "account.passwordMismatch":
+    "The passwords do not match. Enter the same password in both fields.",
+  "account.professionalRequired": "Enter at least two characters.",
+  "account.changeRole": "Change account type",
+  "account.backIdentity": "Back to account details",
+  "account.completeProfile": "Continue your specialist application",
+  "account.parentHelp":
+    "Choose Google, Facebook, or create an account with your email. All email registration fields are required.",
+  "account.specialistHelp":
+    "Complete your professional profile and PDF before review. You can save it before verifying your email.",
+  "account.emailMethod": "Or register with email",
+  "account.stepIdentity": "Step 1 of 2 · Account details",
+  "account.stepProfessional": "Step 2 of 2 · Professional details",
+  "account.checkVerified": "I've verified my email",
+  "account.stillPending":
+    "Your email has not been verified yet. Open the message and confirm, then check again.",
+  "account.signInToCheck":
+    "Sign in to securely check your email status. Your account will stay restricted until verification.",
+  "account.expiry":
+    "New verification links are valid for 24 hours. Open the message and press the verification button.",
+  "account.cooldown": "You can request another link in {seconds} seconds.",
+  "account.setupIncomplete":
+    "Your account was created. Sign in to finish saving your document and application. Do not register again.",
+  "account.savedPending":
+    "Your application is saved. It will enter administrative review after email verification.",
+  "account.socialIdentity": "Identity provided by {provider}",
+  "account.socialEmailHelp":
+    "This contact email still requires NatiqAAC verification.",
+  "account.socialConflict":
+    "Already have an account? Sign in using its existing method, then connect this provider from Account connections.",
+  "account.socialRestart":
+    "If completion fails or expires, cancel and start again. Your existing account will not be duplicated.",
   "account.oauthGoogle": "Continue with Google",
   "account.oauthFacebook": "Continue with Facebook",
   "account.oauthCanceled":
@@ -37,7 +70,7 @@ export const accountEn = {
     "The verification link is missing or invalid. Request a new email.",
   "account.status": "Your application status",
   "account.emailNeeded":
-    "Verify your email before submitting your professional application.",
+    "Verify your email to continue. You can finish your professional application while waiting.",
   "account.emailVerified": "Email verified",
   "account.document": "Supporting qualification document",
   "account.documentHelp":
@@ -70,6 +103,38 @@ export const accountEn = {
 } as const;
 
 export const accountAr: Record<keyof typeof accountEn, string> = {
+  "account.confirmPassword": "تأكيد كلمة المرور",
+  "account.passwordMismatch":
+    "كلمتا المرور غير متطابقتين. أدخل كلمة المرور نفسها في الحقلين.",
+  "account.professionalRequired": "أدخل حرفين على الأقل.",
+  "account.changeRole": "تغيير نوع الحساب",
+  "account.backIdentity": "العودة إلى بيانات الحساب",
+  "account.completeProfile": "متابعة طلبك المهني",
+  "account.parentHelp":
+    "تابع باستخدام Google أو Facebook، أو أنشئ حسابًا ببريدك الإلكتروني. جميع حقول التسجيل بالبريد مطلوبة.",
+  "account.specialistHelp":
+    "أكمل بياناتك المهنية ووثيقة PDF قبل المراجعة. يمكنك حفظها قبل تأكيد بريدك الإلكتروني.",
+  "account.emailMethod": "أو سجّل بالبريد الإلكتروني",
+  "account.stepIdentity": "الخطوة 1 من 2 · بيانات الحساب",
+  "account.stepProfessional": "الخطوة 2 من 2 · البيانات المهنية",
+  "account.checkVerified": "تحققت من بريدي",
+  "account.stillPending":
+    "لم يُؤكّد بريدك بعد. افتح الرسالة واضغط زر التأكيد، ثم تحقّق مجددًا.",
+  "account.signInToCheck":
+    "سجّل الدخول للتحقق من حالة بريدك بأمان. يبقى وصول حسابك مقيّدًا حتى التأكيد.",
+  "account.expiry":
+    "روابط التأكيد الجديدة صالحة لمدة 24 ساعة. افتح الرسالة واضغط زر تأكيد البريد الإلكتروني.",
+  "account.cooldown": "يمكنك طلب رابط آخر بعد {seconds} ثانية.",
+  "account.setupIncomplete":
+    "تم إنشاء حسابك. سجّل الدخول لإكمال حفظ الوثيقة والطلب، دون إنشاء حساب جديد.",
+  "account.savedPending":
+    "حُفظ طلبك. سيُحال إلى مراجعة الإدارة بعد تأكيد بريدك الإلكتروني.",
+  "account.socialIdentity": "هوية مقدّمة من {provider}",
+  "account.socialEmailHelp": "يحتاج بريد التواصل هذا إلى التأكيد عبر ناطق.",
+  "account.socialConflict":
+    "لديك حساب؟ سجّل الدخول بطريقته الحالية، ثم اربط هذا المزوّد من اتصالات الحساب.",
+  "account.socialRestart":
+    "إذا تعذّر الإكمال أو انتهت صلاحيته، ألغِ العملية وابدأ مجددًا. لن يُنشأ حساب مكرر.",
   "account.oauthGoogle": "المتابعة باستخدام Google",
   "account.oauthFacebook": "المتابعة باستخدام Facebook",
   "account.oauthCanceled":
@@ -104,7 +169,8 @@ export const accountAr: Record<keyof typeof accountEn, string> = {
     "تم تأكيد البريد. سجّل الدخول للمتابعة. الموافقة على الأخصائي خطوة منفصلة.",
   "account.invalidLink": "رابط التأكيد مفقود أو غير صالح. اطلب رسالة جديدة.",
   "account.status": "حالة طلبك",
-  "account.emailNeeded": "أكّد بريدك الإلكتروني قبل إرسال طلبك المهني.",
+  "account.emailNeeded":
+    "أكّد بريدك الإلكتروني للمتابعة. يمكنك إكمال طلبك المهني أثناء الانتظار.",
   "account.emailVerified": "البريد الإلكتروني مؤكّد",
   "account.document": "وثيقة إثبات المؤهل",
   "account.documentHelp":

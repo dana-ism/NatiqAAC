@@ -36,7 +36,16 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   if (session.status === "authenticated")
     return <Navigate to="/home" replace />;
   if (session.status === "onboarding")
-    return <Navigate to="/application-status" replace />;
+    return (
+      <Navigate
+        to={
+          session.identity?.role === "PARENT"
+            ? "/verification-pending"
+            : "/application-status"
+        }
+        replace
+      />
+    );
   const afterLogin =
     typeof location.state?.from === "string" && location.state.from === "/home"
       ? location.state.from

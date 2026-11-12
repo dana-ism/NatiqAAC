@@ -52,7 +52,7 @@ if redis.call('PTTL', KEYS[1]) <= 0 then return false end
 local ok, value = pcall(cjson.decode, raw)
 if not ok or type(value) ~= 'table' then return false end
 if value[ARGV[1]] ~= ARGV[2] then return false end
-redis.call('DEL', KEYS[1])
+if ARGV[3] ~= 'peek' then redis.call('DEL', KEYS[1]) end
 return raw
 `;
 const opaque = () => randomBytes(32).toString('base64url');
@@ -189,6 +189,19 @@ export class OAuthFlowService {
   }
 
   async finish(id: string, verifier: string): Promise<OAuthCompletion> {
+    return this.completion(id, verifier, false);
+  }
+
+  /** Same browser proof and expiry as finish, without consuming or extending it. */
+  async preview(id: string, verifier: string): Promise<OAuthCompletion> {
+    return this.completion(id, verifier, true);
+  }
+
+  private async completion(
+    id: string,
+    verifier: string,
+    peek: boolean,
+  ): Promise<OAuthCompletion> {
     if (
       typeof id !== 'string' ||
       !opaquePattern.test(id) ||
@@ -201,6 +214,7 @@ export class OAuthFlowService {
       id,
       'challenge',
       digest(verifier),
+      peek,
     );
     const completion = this.parse(raw);
     if (
@@ -247,11 +261,12 @@ export class OAuthFlowService {
     token: string,
     field: 'provider' | 'challenge',
     binding: string,
+    peek = false,
   ): Promise<string> {
     const result = await runRedisSecurity(this.redis, () =>
       this.redis.eval(OAUTH_CONSUME_SCRIPT, {
         keys: [this.key(kind, token)],
-        arguments: [field, binding],
+        arguments: [field, binding, peek ? 'peek' : 'consume'],
       }),
     );
     if (typeof result !== 'string') throw invalid();

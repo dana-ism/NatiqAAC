@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountLifecycleService } from '../auth/account-lifecycle.service';
 import { DocumentStorageService } from './document-storage.service';
-import { SpecialistService } from './specialist.service';
+import { reviewVisibility, SpecialistService } from './specialist.service';
 
 const USER_ID = '304c9382-a1f5-4644-85ad-44ae1a703530';
 const ADMIN_ID = 'ae434572-e5fb-4a92-8467-7e3b4d3ab974';
@@ -89,7 +89,7 @@ describe('SpecialistService admission and transactional review', () => {
       prisma.specialistApplication.count.mockResolvedValue(count);
       await expect(service.summary()).resolves.toEqual({ pendingCount: count });
       expect(prisma.specialistApplication.count).toHaveBeenCalledWith({
-        where: { status: 'PENDING_REVIEW' },
+        where: { status: 'PENDING_REVIEW', ...reviewVisibility },
       });
     },
   );
@@ -248,14 +248,14 @@ describe('SpecialistService admission and transactional review', () => {
       where: {
         id: APP_ID,
         status: 'DRAFT',
+        submittedAt: null,
         documentKey: { not: null },
         user: {
           status: 'ACTIVE',
           role: 'SPECIALIST',
-          OR: [{ emailVerifiedAt: { not: null } }, { legacyAuthExempt: true }],
         },
       },
-      data: { status: 'PENDING_REVIEW', submittedAt: expect.any(Date) },
+      data: { submittedAt: expect.any(Date) },
     });
     expect(accounts.notify).not.toHaveBeenCalled();
   });

@@ -18,6 +18,20 @@ const kinds: MailTemplateInput['kind'][] = [
 ];
 
 describe('mail templates', () => {
+  it.each<MailLocale>(['ar', 'en'])(
+    'renders the approved 24-hour lifetime in %s HTML and text',
+    (locale) => {
+      const mail = renderMailTemplate({
+        ...common,
+        locale,
+        kind: 'verification',
+        expiresInMinutes: 1440,
+      });
+      const expiry = locale === 'ar' ? '24 ساعة' : '24 hours';
+      expect(mail.text).toContain(expiry);
+      expect(mail.html).toContain(expiry);
+    },
+  );
   describe.each<MailLocale>(['en', 'ar'])('%s locale', (locale) => {
     it.each(kinds)('renders %s with localized HTML and plain text', (kind) => {
       const mail = renderMailTemplate({

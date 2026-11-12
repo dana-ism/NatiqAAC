@@ -251,6 +251,23 @@ describe('OAuth HTTP transport and account lifecycle on isolated infrastructure'
       const subject = identity(chosen, address);
       const registration = await start(chosen, 'register', role);
       const proof = await callback(registration, subject);
+      await request(app.getHttpServer())
+        .post('/auth/oauth/context')
+        .send({ ...proof, verifier: opaque() })
+        .expect(401);
+      for (let i = 0; i < 2; i++) {
+        const context = await request(app.getHttpServer())
+          .post('/auth/oauth/context')
+          .send(proof)
+          .expect(200);
+        expect(context.body).toEqual({
+          provider: chosen,
+          fullName: subject.fullName,
+          email: subject.email ?? null,
+          emailTrusted: subject.emailTrusted,
+          linked: false,
+        });
+      }
       const registered = await finish(proof, {
         fullName: 'Synthetic OAuth Account',
         email: address,

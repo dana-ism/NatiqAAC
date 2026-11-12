@@ -1,5 +1,9 @@
 # Admin experience V2
 
+V3 eligibility update: all application reads, counts, details and PDFs now require
+actual verified owner email. Legacy access exemptions are preserved for login,
+not treated as mailbox evidence for review. See [V3](auth-onboarding-v3.md).
+
 Based on `feature/admin-signature-experience` at `ac54af8`. The owner's V2 request
 explicitly replaces hidden future navigation with clickable sections. The latest
 request adds Settings and visual foundations for all five future modules. It
@@ -50,11 +54,11 @@ recentApplications: ApplicationSummary[]}`. No old response changes.
 
 One Prisma RepeatableRead transaction contains reads only:
 
-1. Group all applications by persisted status and count each group. Pending,
+1. Group applications with verified owner email by persisted status and count each group. Pending,
    approved and rejected metrics use those exact states. Total sums all groups,
    including DRAFT, explicitly explained in the UI. These are application counts,
    not counts of active or eligible specialists.
-2. Select at most five non-DRAFT applications with non-null submittedAt, ordered
+2. Select at most five verified-owner non-DRAFT applications with non-null submittedAt, ordered
    by submittedAt DESC then id DESC for stable ties. Return only the same safe
    applicant/professional projection already available in the old Admin list.
 
