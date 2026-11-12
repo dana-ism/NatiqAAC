@@ -85,6 +85,7 @@ export interface ApplicationDetails {
   summary: string | null;
   hasDocument: boolean;
   reviews: Review[];
+  submittedAt?: string | null;
 }
 export function applicationDetails(v: unknown): v is ApplicationDetails {
   return (
@@ -95,6 +96,9 @@ export function applicationDetails(v: unknown): v is ApplicationDetails {
     typeof v.qualification === "string" &&
     (v.summary === null || typeof v.summary === "string") &&
     typeof v.hasDocument === "boolean" &&
+    (v.submittedAt === undefined ||
+      v.submittedAt === null ||
+      typeof v.submittedAt === "string") &&
     Array.isArray(v.reviews) &&
     v.reviews.every(
       (r) =>

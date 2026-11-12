@@ -120,6 +120,7 @@ function AppContent() {
   }
   return (
     <Layout
+      onboarding={!welcome && !location.pathname.startsWith("/admin")}
       welcome={welcome}
       afterContent={welcome ? <FeaturePreview /> : undefined}
     >

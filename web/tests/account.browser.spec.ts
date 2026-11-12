@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import axe from "axe-core";
+test.setTimeout(60_000);
 import { ar } from "../src/i18n/ar";
 import { en } from "../src/i18n/en";
 
@@ -35,13 +36,14 @@ async function localeSetup(page: Page, locale: "ar" | "en") {
   );
 }
 
-for (const width of [375, 768, 1440]) {
+for (const width of [320, 375, 768, 1024, 1440]) {
   for (const locale of ["ar", "en"] as const) {
     const copy = locale === "ar" ? ar : en;
     test(`Account registration and explicit verification ${locale} ${width}px (mocked API, axe)`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 1000 });
+      await page.clock.install();
       await localeSetup(page, locale);
       let verificationCalls = 0;
       let registrationBody: Record<string, unknown> | undefined;
@@ -57,6 +59,34 @@ for (const width of [375, 768, 1440]) {
         if (route.request().method() === "OPTIONS")
           return route.fulfill({ status: 204, headers });
         const path = new URL(route.request().url()).pathname;
+        if (path === "/auth/login")
+          return route.fulfill({
+            status: 200,
+            headers,
+            body: JSON.stringify({
+              message: "ok",
+              onboarding_token: token(),
+              user: {
+                id: "synthetic-id",
+                fullName: "Synthetic Specialist",
+                email: "synthetic@example.com",
+                role: "SPECIALIST",
+                status: "ACTIVE",
+              },
+            }),
+          });
+        if (path === "/auth/onboarding/me")
+          return route.fulfill({
+            status: 200,
+            headers,
+            body: JSON.stringify({
+              userId: "synthetic-id",
+              email: "synthetic@example.com",
+              role: "SPECIALIST",
+              emailVerified: false,
+              legacyAuthExempt: false,
+            }),
+          });
         if (path === "/auth/email/verify") {
           verificationCalls++;
           expect(route.request().method()).toBe("POST");
@@ -111,6 +141,23 @@ for (const width of [375, 768, 1440]) {
         .getByLabel(copy["auth.password"], { exact: true })
         .fill("Synthetic123!");
       await page
+        .getByLabel(copy["account.confirmPassword"], { exact: true })
+        .fill("Synthetic123!");
+      await page
+        .getByRole("button", {
+          name: copy["account.oauthContinue"],
+          exact: true,
+        })
+        .click();
+      await audit(page);
+      await page
+        .getByLabel(copy["account.document"], { exact: true })
+        .setInputFiles({
+          name: "synthetic.pdf",
+          mimeType: "application/pdf",
+          buffer: Buffer.from("%PDF-1.7\nSynthetic\n%%EOF"),
+        });
+      await page
         .getByLabel(copy["account.specialization"])
         .fill("Communication");
       await page
@@ -125,6 +172,11 @@ for (const width of [375, 768, 1440]) {
       await expect(
         page.getByRole("heading", { name: copy["account.pending"] }),
       ).toBeVisible();
+      if (width === 375 || width === 1440)
+        await page.screenshot({
+          path: `../docs/assets/auth-v3/${locale}-${width}-registration-pending.png`,
+          fullPage: true,
+        });
       expect(registrationBody).toEqual({
         fullName: "Synthetic Specialist",
         email: "synthetic@example.com",
@@ -135,6 +187,7 @@ for (const width of [375, 768, 1440]) {
         locale,
       });
       await audit(page);
+      await page.clock.fastForward(60_001);
       await page
         .getByRole("button", { name: copy["account.resend"], exact: true })
         .click();
@@ -155,6 +208,11 @@ for (const width of [375, 768, 1440]) {
         copy["account.verified"],
       );
       expect(verificationCalls).toBe(1);
+      if (width === 375 || width === 1440)
+        await page.screenshot({
+          path: `../docs/assets/auth-v3/${locale}-${width}-verified.png`,
+          fullPage: true,
+        });
       await audit(page);
       expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
       expect(
@@ -294,7 +352,7 @@ for (const width of [375, 768, 1440]) {
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: copy["account.submit"], exact: true }),
-      ).toBeDisabled();
+      ).toBeEnabled();
       verified = true;
       await page
         .getByRole("button", { name: copy["home.signOut"], exact: true })

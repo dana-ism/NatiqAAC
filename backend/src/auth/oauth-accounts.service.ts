@@ -36,6 +36,27 @@ export class OAuthAccountsService {
     private readonly domains: EmailDomainService,
   ) {}
 
+  async context(transaction: OAuthCompletion) {
+    const { identity } = transaction;
+    const linked = await this.prisma.authIdentity.findUnique({
+      where: {
+        provider_subject: {
+          provider: identity.provider,
+          subject: identity.subject,
+        },
+      },
+      select: { userId: true },
+    });
+    // Never project provider subject, local account details, or provider tokens.
+    return {
+      provider: identity.provider,
+      fullName: identity.fullName,
+      email: identity.email ?? null,
+      emailTrusted: identity.emailTrusted,
+      linked: !!linked,
+    };
+  }
+
   async complete(transaction: OAuthCompletion, input: OAuthAccountInput) {
     const { identity } = transaction;
     if (

@@ -8,6 +8,13 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountLifecycleService } from '../auth/account-lifecycle.service';
 import { DocumentStorageService } from './document-storage.service';
+import { promoteSubmittedApplication } from './application-transition';
+
+// Review visibility requires actual mailbox verification; legacy access exemptions
+// still permit existing login but are never fabricated verification evidence.
+export const reviewVisibility = {
+  user: { emailVerifiedAt: { not: null } },
+} as const;
 
 @Injectable()
 export class SpecialistService {
@@ -66,55 +73,46 @@ export class SpecialistService {
   async submit(userId: string) {
     const origin = this.accounts.publicOrigin();
     const user = await this.applicant(userId);
-    if (!user.emailVerifiedAt && !user.legacyAuthExempt)
-      throw new ForbiddenException(
-        'Please verify your email before continuing',
-      );
     const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
       const changed = await tx.specialistApplication.updateMany({
         where: {
           id: user.specialistApplication.id,
           status: 'DRAFT',
+          submittedAt: null,
           documentKey: { not: null },
           user: {
             status: 'ACTIVE',
             role: 'SPECIALIST',
-            OR: [
-              { emailVerifiedAt: { not: null } },
-              { legacyAuthExempt: true },
-            ],
           },
         },
-        data: { status: 'PENDING_REVIEW', submittedAt: new Date() },
+        data: { submittedAt: new Date() },
       });
-      if (changed.count === 1)
-        await tx.mailDelivery.upsert({
-          where: { eventKey: `application:${user.specialistApplication.id}` },
-          create: {
-            userId,
-            eventKey: `application:${user.specialistApplication.id}`,
-            kind: 'application-received',
-          },
-          update: {},
-        });
-      return changed;
+      if (changed.count !== 1) return { count: 0, applicationId: null };
+      const applicationId = await promoteSubmittedApplication(tx, userId);
+      return { count: 1, applicationId };
     });
     if (result.count !== 1)
       throw new ConflictException(
         'Application requires a document or was already submitted',
       );
-    await this.accounts.notify(
-      user,
-      'application-received',
-      `application:${user.specialistApplication.id}`,
-      `${origin}/application-status`,
-    );
-    return { message: 'Application submitted for review' };
+    if (result.applicationId)
+      await this.accounts.notify(
+        user,
+        'application-received',
+        `application:${user.specialistApplication.id}`,
+        `${origin}/application-status`,
+      );
+    return {
+      message: result.applicationId
+        ? 'Application submitted for review'
+        : 'Application saved; email verification required',
+    };
   }
 
   async summary() {
     const pendingCount = await this.prisma.specialistApplication.count({
-      where: { status: 'PENDING_REVIEW' },
+      where: { status: 'PENDING_REVIEW', ...reviewVisibility },
     });
     return { pendingCount };
   }
@@ -125,12 +123,17 @@ export class SpecialistService {
       async (tx) => {
         const groups = await tx.specialistApplication.groupBy({
           by: ['status'],
+          where: reviewVisibility,
           _count: { _all: true },
         });
         const count = (status: string) =>
           groups.find((group) => group.status === status)?._count._all ?? 0;
         const recent = await tx.specialistApplication.findMany({
-          where: { submittedAt: { not: null }, status: { not: 'DRAFT' } },
+          where: {
+            submittedAt: { not: null },
+            status: { not: 'DRAFT' },
+            ...reviewVisibility,
+          },
           orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
           take: 5,
           select: {
@@ -159,6 +162,7 @@ export class SpecialistService {
 
   async list() {
     const applications = await this.prisma.specialistApplication.findMany({
+      where: reviewVisibility,
       orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
       take: 100,
       select: {
@@ -202,10 +206,20 @@ export class SpecialistService {
   }
 
   async details(id: string) {
+    await this.requireReviewVisibility(id);
     return { application: await this.project(id) };
   }
 
+  private async requireReviewVisibility(id: string) {
+    const app = await this.prisma.specialistApplication.findFirst({
+      where: { id, ...reviewVisibility },
+      select: { id: true },
+    });
+    if (!app) throw new NotFoundException('Application not found');
+  }
+
   async document(applicationId: string, userId: string, admin: boolean) {
+    if (admin) await this.requireReviewVisibility(applicationId);
     const app = await this.prisma.specialistApplication.findUnique({
       where: { id: applicationId },
       select: { userId: true, documentKey: true },
@@ -244,13 +258,10 @@ export class SpecialistService {
       if (app.userId === reviewerId) throw new ForbiddenException();
       const eligible = await tx.$queryRaw<
         { id: string }[]
-      >`SELECT id FROM users WHERE id = ${app.userId}::uuid AND role = 'SPECIALIST' AND status = 'ACTIVE' AND (email_verified_at IS NOT NULL OR legacy_auth_exempt = true) FOR UPDATE`;
+      >`SELECT id FROM users WHERE id = ${app.userId}::uuid AND role = 'SPECIALIST' AND status = 'ACTIVE' AND email_verified_at IS NOT NULL FOR UPDATE`;
       if (eligible.length !== 1)
         throw new ConflictException('Applicant is not eligible');
-      if (
-        app.user.status !== 'ACTIVE' ||
-        (!app.user.emailVerifiedAt && !app.user.legacyAuthExempt)
-      )
+      if (app.user.status !== 'ACTIVE' || !app.user.emailVerifiedAt)
         throw new ConflictException('Applicant is not eligible');
       const changed = await tx.specialistApplication.updateMany({
         where: { id, status: 'PENDING_REVIEW' },

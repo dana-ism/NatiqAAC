@@ -7,6 +7,7 @@ import type { Locale } from "../../i18n/messages";
 import { apiBase, record, request } from "../../shared/api";
 import { ErrorAlert } from "../../shared/Feedback";
 import { useAccountCopy } from "./account.messages";
+import { messageResult } from "./account.api";
 
 type Provider = "GOOGLE" | "FACEBOOK";
 type Signup = {
@@ -25,6 +26,8 @@ interface Props {
   intent: "login" | "register" | "link";
   role?: "PARENT" | "SPECIALIST";
   registration?: Signup;
+  onStageChange?: (active: boolean) => void;
+  disabled?: boolean;
 }
 interface Flow {
   popup: Window;
@@ -33,8 +36,26 @@ interface Flow {
   completionId?: string;
   controller: AbortController;
   cleanup(): void;
+  finishing?: boolean;
 }
 
+interface ProviderContext {
+  provider: Provider;
+  fullName: string;
+  email: string | null;
+  emailTrusted: boolean;
+  linked: boolean;
+}
+function providerContext(v: unknown): v is ProviderContext {
+  return (
+    record(v) &&
+    ["GOOGLE", "FACEBOOK"].includes(String(v.provider)) &&
+    typeof v.fullName === "string" &&
+    (v.email === null || typeof v.email === "string") &&
+    typeof v.emailTrusted === "boolean" &&
+    typeof v.linked === "boolean"
+  );
+}
 function oauthResult(v: unknown): v is OAuthSessionResult {
   return (
     record(v) &&
@@ -77,7 +98,13 @@ function signupFields(values: Signup, locale: Locale): Signup {
   };
 }
 
-export function SocialButtons({ intent, role, registration = {} }: Props) {
+export function SocialButtons({
+  intent,
+  role,
+  registration = {},
+  onStageChange,
+  disabled = false,
+}: Props) {
   const { t, locale } = useI18n();
   const c = useAccountCopy();
   const navigate = useNavigate();
@@ -101,6 +128,9 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
   const [notice, setNotice] = useState("");
   const [completion, setCompletion] = useState(false);
   const [fields, setFields] = useState<Signup>({});
+  const [identity, setIdentity] = useState<ProviderContext | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [finishFailed, setFinishFailed] = useState(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -115,10 +145,16 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
     if (mounted.current) {
       setBusy(false);
       setCompletion(false);
+      setIdentity(null);
+      setFailure(null);
+      setFields({});
+      setFinishFailed(false);
+      onStageChange?.(false);
     }
   }
   async function finish(flow: Flow, values: Signup) {
-    if (active.current !== flow || !flow.completionId) return;
+    if (active.current !== flow || !flow.completionId || flow.finishing) return;
+    flow.finishing = true;
     setBusy(true);
     setFailure(null);
     setNotice("");
@@ -134,12 +170,32 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
       if (!mounted.current || active.current !== flow) return;
       const accepted = await session.adoptSession(result);
       if (!mounted.current || active.current !== flow) return;
+      let setupError = false;
+      if (accepted && intent === "register" && role === "SPECIALIST" && file) {
+        try {
+          const body = new FormData();
+          body.append("document", file);
+          await session.uploadDocument(body);
+          await session.authenticatedPost(
+            "/specialist/application/submit",
+            {},
+            messageResult,
+          );
+        } catch {
+          setupError = true;
+        }
+      }
       stop();
-      if (accepted) navigate("/home", { replace: true });
+      if (accepted)
+        navigate(setupError ? "/application-status" : "/home", {
+          replace: true,
+          state: { setupError },
+        });
     } catch (error) {
       if (!flow.controller.signal.aborted && mounted.current) {
         setFailure(error);
         setBusy(false);
+        setFinishFailed(true);
       }
     }
   }
@@ -148,6 +204,10 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
     setFailure(null);
     setNotice("");
     setCompletion(false);
+    setFields({});
+    setIdentity(null);
+    setFile(null);
+    setFinishFailed(false);
     const popup = window.open(
       "about:blank",
       "_blank",
@@ -159,6 +219,7 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
     }
     setBusy(true);
     const controller = new AbortController();
+    onStageChange?.(true);
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const flow: Flow = {
       popup,
@@ -215,19 +276,45 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
       flow.popup.close();
       // Completion is short-lived even when the user needs to enter missing data.
       timeout = setTimeout(() => cancel(labels.canceled), 110_000);
-      const initial = signupFields(registration, locale);
-      const incomplete =
-        intent === "register" &&
-        (!initial.fullName ||
-          !initial.email ||
-          (role === "SPECIALIST" &&
-            (!initial.specialization || !initial.qualification)));
-      if (incomplete) {
-        setFields(initial);
+      try {
+        if (intent !== "register") {
+          await finish(flow, {});
+          return;
+        }
+        const context = await request(
+          "/auth/oauth/context",
+          200,
+          providerContext,
+          {
+            body: { completionId: flow.completionId, verifier: flow.verifier },
+            signal: controller.signal,
+          },
+        );
+        if (active.current !== flow || !mounted.current) return;
+        if (context.provider !== provider) {
+          cancel(labels.failed);
+          return;
+        }
+        if (context.linked) {
+          await finish(flow, {});
+          return;
+        }
+        setIdentity(context);
+        setFields({
+          ...signupFields(registration, locale),
+          fullName: context.fullName || registration.fullName || "",
+          email: context.email ?? registration.email ?? "",
+        });
         setCompletion(true);
         setBusy(false);
-      } else {
-        await finish(flow, initial);
+        requestAnimationFrame(() =>
+          document.getElementById("oauth-title")?.focus(),
+        );
+      } catch (error) {
+        if (active.current === flow && !controller.signal.aborted) {
+          stop();
+          setFailure(error);
+        }
       }
     }
     window.addEventListener("message", receive);
@@ -342,6 +429,11 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
   return (
     <div className="account-social">
       <ErrorAlert error={failure} />
+      {!!failure && (
+        <p className="field-hint">
+          {c("account.socialConflict")} {c("account.socialRestart")}
+        </p>
+      )}
       {notice && (
         <p className="alert info-alert" role="status">
           {notice}
@@ -349,16 +441,63 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
       )}
       {completion ? (
         <form onSubmit={submit} aria-busy={busy}>
-          <h3>{labels.complete}</h3>
+          <h3 id="oauth-title" tabIndex={-1}>
+            {labels.complete}
+          </h3>
+          {identity && (
+            <div className="provider-summary">
+              <p>
+                {c("account.socialIdentity").replace(
+                  "{provider}",
+                  identity.provider === "GOOGLE" ? "Google" : "Facebook",
+                )}
+              </p>
+              {identity.email && <p dir="ltr">{identity.email}</p>}
+              {!identity.emailTrusted && <p>{c("account.socialEmailHelp")}</p>}
+            </div>
+          )}
           {input("fullName", t("auth.fullName"), true, 100)}
-          {input("email", t("auth.email"), true, 254)}
+          {!identity?.email && input("email", t("auth.email"), true, 254)}
           {role === "SPECIALIST" && (
             <>
               {input("specialization", c("account.specialization"), true, 160)}
               {input("qualification", c("account.qualification"), true, 200)}
+              <div className="field">
+                <label htmlFor="oauth-summary">{c("account.summary")}</label>
+                <textarea
+                  id="oauth-summary"
+                  maxLength={2000}
+                  disabled={busy}
+                  value={fields.summary ?? ""}
+                  onChange={(e) =>
+                    setFields((v) => ({ ...v, summary: e.target.value }))
+                  }
+                />
+              </div>
+              <p className="field-hint">{c("account.documentHelp")}</p>
+              <label htmlFor="oauth-document">{c("account.document")}</label>
+              <input
+                id="oauth-document"
+                type="file"
+                accept="application/pdf"
+                required
+                disabled={busy}
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] ?? null;
+                  const valid =
+                    !!selected &&
+                    selected.type === "application/pdf" &&
+                    selected.size > 0 &&
+                    selected.size <= 5 * 1024 * 1024;
+                  e.target.setCustomValidity(
+                    valid ? "" : c("account.fileInvalid"),
+                  );
+                  setFile(valid ? selected : null);
+                }}
+              />
             </>
           )}
-          <button className="primary-button" disabled={busy}>
+          <button className="primary-button" disabled={busy || finishFailed}>
             {labels.continue}
           </button>
           <button
@@ -379,7 +518,7 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
             <button
               className="primary-button"
               type="button"
-              disabled={busy}
+              disabled={busy || disabled}
               onClick={() => start("GOOGLE")}
               style={{
                 background: "#ffffff",
@@ -415,7 +554,7 @@ export function SocialButtons({ intent, role, registration = {} }: Props) {
             <button
               className="primary-button"
               type="button"
-              disabled={busy}
+              disabled={busy || disabled}
               onClick={() => start("FACEBOOK")}
               style={{ background: "#0866ff", color: "#ffffff" }}
             >

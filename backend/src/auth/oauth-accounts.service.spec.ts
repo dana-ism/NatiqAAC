@@ -112,6 +112,18 @@ describe('OAuthAccountsService', () => {
       eventKey: `welcome:${data.id}`,
     });
   });
+  it('projects only the browser-bound provider summary without local account or provider secrets', async () => {
+    prisma.authIdentity.findUnique.mockResolvedValue({ userId });
+    await expect(service.context(base)).resolves.toEqual({
+      provider: 'GOOGLE',
+      fullName: 'Parent',
+      email: 'parent@gmail.com',
+      emailTrusted: true,
+      linked: true,
+    });
+    expect(sessions.issue).not.toHaveBeenCalled();
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+  });
   it('does not auto-verify a different supplied mailbox', async () => {
     await service.complete(base, { email: 'other@example.org' });
     const data = prisma.user.create.mock.calls[0][0].data;
@@ -129,7 +141,7 @@ describe('OAuthAccountsService', () => {
     expect(
       data.verification.create.expiresAt.getTime() -
         data.verification.create.resendAfter.getTime(),
-    ).toBe(59 * 60_000);
+    ).toBe((24 * 60 - 1) * 60_000);
   });
   it('never trusts a Facebook email even if upstream accidentally marks it trusted', async () => {
     await service.complete(

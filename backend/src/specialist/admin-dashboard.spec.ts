@@ -1,4 +1,4 @@
-import { SpecialistService } from './specialist.service';
+import { reviewVisibility, SpecialistService } from './specialist.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DocumentStorageService } from './document-storage.service';
 import { AccountLifecycleService } from '../auth/account-lifecycle.service';
@@ -62,10 +62,15 @@ describe('Read-only Admin dashboard', () => {
     });
     expect(tx.specialistApplication.groupBy).toHaveBeenCalledWith({
       by: ['status'],
+      where: reviewVisibility,
       _count: { _all: true },
     });
     expect(tx.specialistApplication.findMany).toHaveBeenCalledWith({
-      where: { submittedAt: { not: null }, status: { not: 'DRAFT' } },
+      where: {
+        submittedAt: { not: null },
+        status: { not: 'DRAFT' },
+        ...reviewVisibility,
+      },
       orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
       take: 5,
       select: {

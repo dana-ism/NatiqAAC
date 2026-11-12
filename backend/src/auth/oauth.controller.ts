@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Post,
   Query,
@@ -45,9 +46,11 @@ export class OAuthLinkStartDto {
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
-export class OAuthFinishDto {
+export class OAuthContextDto {
   @Matches(/^[A-Za-z0-9_-]{43}$/) completionId: string;
   @Matches(/^[A-Za-z0-9_-]{43}$/) verifier: string;
+}
+export class OAuthFinishDto extends OAuthContextDto {
   @IsOptional() @Transform(trim) @IsString() @Length(1, 100) fullName?: string;
   @IsOptional() @Transform(trim) @IsEmail() @MaxLength(254) email?: string;
   @IsOptional()
@@ -124,6 +127,15 @@ export class OAuthController {
   async finish(@Body() dto: OAuthFinishDto) {
     const transaction = await this.flow.finish(dto.completionId, dto.verifier);
     return this.accounts.complete(transaction, dto);
+  }
+
+  @Post('context')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  async context(@Body() dto: OAuthContextDto) {
+    return this.accounts.context(
+      await this.flow.preview(dto.completionId, dto.verifier),
+    );
   }
 
   private async callback(

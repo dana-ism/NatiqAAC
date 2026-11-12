@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../../i18n/I18nProvider";
+import { ApiError } from "../../shared/api";
 import {
   accountApi,
   applicationDetails,
@@ -18,6 +19,7 @@ import {
 } from "./AccountPages";
 
 const session = vi.hoisted(() => ({
+  status: "anonymous",
   authenticatedGet: vi.fn(),
   authenticatedPost: vi.fn(),
   uploadDocument: vi.fn(),
@@ -36,11 +38,83 @@ function mount(component: ReactNode, strict = false) {
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
+  session.status = "anonymous";
   window.localStorage.setItem("natiqaac.locale", "en");
   window.history.replaceState(null, "", "/verify-email");
 });
 
 describe("account screens", () => {
+  it("rejects a password mismatch, focuses confirmation and preserves typed input", () => {
+    const register = vi.spyOn(accountApi, "register");
+    mount(<ParentRegistrationPage />);
+    fireEvent.change(screen.getByLabelText("Full name"), {
+      target: { value: "Synthetic" },
+    });
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "synthetic@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "Synthetic123!" },
+    });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: "Different123!" },
+    });
+    fireEvent.submit(
+      screen
+        .getByRole("button", { name: "Create account and continue" })
+        .closest("form")!,
+    );
+    expect(screen.getByLabelText("Confirm password")).toHaveFocus();
+    expect(
+      screen.getByLabelText("Confirm password"),
+    ).toHaveAccessibleDescription(/do not match/);
+    expect(screen.getByLabelText("Password")).toHaveValue("Synthetic123!");
+    expect(register).not.toHaveBeenCalled();
+  });
+  it("checks the backend without marking an unverified account verified or issuing a session", async () => {
+    session.status = "onboarding";
+    session.authenticatedGet.mockResolvedValue({
+      userId: "synthetic",
+      email: "synthetic@example.com",
+      role: "PARENT",
+      emailVerified: false,
+      legacyAuthExempt: false,
+    });
+    mount(<VerificationPendingPage />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "I've verified my email" }),
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "not been verified yet",
+    );
+    expect(session.authenticatedGet).toHaveBeenCalledWith(
+      "/auth/onboarding/me",
+      expect.any(Function),
+    );
+    expect(session.authenticatedPost).not.toHaveBeenCalled();
+  });
+  it("honors Retry-After and never claims successful resend after a rate-limit failure", async () => {
+    vi.spyOn(accountApi, "resend").mockRejectedValue(
+      new ApiError(429, "http", 120),
+    );
+    mount(<VerificationPendingPage />);
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "synthetic@example.com" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Resend verification email" }),
+    );
+    await screen.findByRole("alert");
+    expect(
+      screen.getByRole("button", { name: "Resend verification email" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("You can request another link in 120 seconds."),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/If this account is eligible/),
+    ).not.toBeInTheDocument();
+  });
   it("offers separate parent and specialist entry routes", () => {
     mount(<AccountTypePage />);
     expect(
@@ -124,6 +198,9 @@ describe("account screens", () => {
     fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: " Password123! " },
     });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: " Password123! " },
+    });
     fireEvent.submit(
       screen
         .getByRole("button", { name: "Create account and continue" })
@@ -173,6 +250,36 @@ describe("account screens", () => {
       screen.getByLabelText("Supporting qualification document"),
     ).toHaveAttribute("accept", "application/pdf");
     expect(session.authenticatedPost).not.toHaveBeenCalled();
+  });
+  it("does not label a legacy login exemption as verified email and offers mailbox verification", async () => {
+    session.authenticatedGet.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.includes("onboarding")
+          ? {
+              userId: "id",
+              email: "synthetic@example.com",
+              role: "SPECIALIST",
+              emailVerified: false,
+              legacyAuthExempt: true,
+            }
+          : {
+              id: "id",
+              status: "DRAFT",
+              specialization: "Synthetic",
+              qualification: "Synthetic",
+              summary: null,
+              hasDocument: false,
+              reviews: [],
+            },
+      ),
+    );
+    mount(<ApplicationStatusPage />);
+    expect(
+      await screen.findByRole("link", { name: "Resend verification email" }),
+    ).toHaveAttribute("href", "/verification-pending");
+    expect(
+      screen.queryByText("Email verified", { exact: true }),
+    ).not.toBeInTheDocument();
   });
   it("requires a second explicit action before admin approval", async () => {
     const application = {

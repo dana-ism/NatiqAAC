@@ -115,10 +115,13 @@ for (const width of [375, 768, 1440]) {
     await page.getByLabel("الاسم الكامل").fill("Synthetic Parent");
     await page.getByLabel("البريد الإلكتروني").fill("parent@example.com");
     await page.getByLabel("كلمة المرور", { exact: true }).fill("TestPass123!");
+    await page
+      .getByLabel(ar["account.confirmPassword"], { exact: true })
+      .fill("TestPass123!");
     await page.getByLabel("كلمة المرور", { exact: true }).focus();
     await page.keyboard.press("Tab");
     await expect(
-      page.getByRole("button", { name: "إظهار كلمة المرور" }),
+      page.getByRole("button", { name: "إظهار كلمة المرور — كلمة المرور" }),
     ).toBeFocused();
     await page.keyboard.press("Space");
     await expect(
@@ -283,6 +286,9 @@ for (const width of [375, 768, 1440]) {
     await page.getByLabel(en["auth.email"]).fill("parent@example.com");
     await page
       .getByLabel(en["auth.password"], { exact: true })
+      .fill("TestPass123!");
+    await page
+      .getByLabel(en["account.confirmPassword"], { exact: true })
       .fill("TestPass123!");
     await page
       .getByRole("button", { name: en["account.apply"], exact: true })

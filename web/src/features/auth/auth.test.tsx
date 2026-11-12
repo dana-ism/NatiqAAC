@@ -64,6 +64,11 @@ async function fill(register = false) {
     "parent@example.com",
   );
   await input.type(screen.getByLabelText("كلمة المرور"), "TestPass123!");
+  if (register)
+    await input.type(
+      screen.getByLabelText(ar["account.confirmPassword"]),
+      "TestPass123!",
+    );
   return input;
 }
 async function login() {
@@ -180,7 +185,7 @@ describe("Forms and memory-only authentication with controlled HTTP responses", 
       "http://localhost:3000/auth/register/parent",
     );
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).locale).toBe("ar");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
   it.each([400, 401, 403, 429, 503, 500])(
     "renders a safe accessible login error for HTTP %s",

@@ -1,5 +1,11 @@
 # Authentication and account management V2
 
+V3 update: see [Authentication and onboarding V3](auth-onboarding-v3.md).
+The owner approved 24-hour new verification links and pre-verification specialist
+submission intent on 2026-11-12, without schema migration or backfill. Admin
+application visibility now requires actual email verification, including for
+legacy-exempt owners; legacy login exemptions remain unchanged.
+
 Operational update: the owner subsequently authorized the Supabase V2 migration;
 it was applied and verified on 2026-11-09. See the
 [migration application report](auth-account-v2-supabase-migration.md).
@@ -139,7 +145,7 @@ identity equivalence and database-enforced case-insensitive email uniqueness rem
 separate concerns; no legacy cleanup is performed automatically.
 
 Password registration creates a 32-byte cryptographically random base64url token.
-Only its SHA-256 digest, expiry and cooldown are stored. Validity is 60 minutes;
+Only its SHA-256 digest, expiry and cooldown are stored. New links are valid for 24 hours;
 resend cooldown is 60 seconds. Verification links use `/verify-email#token=...` so
 the token is not sent in the page request query. The browser submits it in the POST
 body; application/proxy body logging must not capture it. There is no raw token in
@@ -173,7 +179,7 @@ DTOs also consume requests. Proxy trust is not expanded. No new global error env
 | `GET /specialist/application/me`                  | Account token, current Specialist, 20/min | None                                                               | 200 application projection                               |
 | `POST /specialist/application/document`           | Account token, current Specialist, 3/min  | Multipart `document`, one PDF, no extra parts                      | 200 `{message}`                                          |
 | `GET /specialist/application/document`            | Owning Specialist account token, 20/min   | None                                                               | 200 PDF attachment                                       |
-| `POST /specialist/application/submit`             | Verified Specialist, 20/min               | No body fields                                                     | 200 `{message}`                                          |
+| `POST /specialist/application/submit`             | Specialist account token, 20/min          | No body fields                                                     | 200 `{message}`; unverified submission stays DRAFT until verification |
 | `GET /admin/specialist-applications`              | Ordinary ACTIVE Admin, 20/min             | None                                                               | 200 `{applications:[...]}` (at most 100)                 |
 | `GET /admin/specialist-applications/:id`          | Ordinary ACTIVE Admin, 20/min             | UUID path                                                          | 200 `{application:...}`                                  |
 | `GET /admin/specialist-applications/:id/document` | Ordinary ACTIVE Admin, 20/min             | UUID path                                                          | 200 PDF attachment                                       |
@@ -213,8 +219,10 @@ turn an already committed verification/review into a false account-operation fai
 
 ## Specialist review and private documents
 
-Applications start DRAFT. A required PDF can be attached once while DRAFT, then
-submission conditionally moves a verified eligible applicant to PENDING_REVIEW.
+Applications start DRAFT. A required PDF can be attached once while DRAFT.
+Explicit submission records submittedAt; an unverified applicant remains DRAFT
+and invisible to Admin until verification. Verified submitted applications
+conditionally move to PENDING_REVIEW in the shared locked transaction.
 Submitting twice, submitting without a document or uploading after attachment/
 submission returns 409. This version has no application editing, document replacement
 or rejection resubmission endpoint.

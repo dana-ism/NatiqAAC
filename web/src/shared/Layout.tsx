@@ -58,14 +58,18 @@ export function Layout({
   children,
   welcome = false,
   afterContent,
+  onboarding = false,
 }: {
   children: ReactNode;
   welcome?: boolean;
   afterContent?: ReactNode;
+  onboarding?: boolean;
 }) {
   const { t } = useI18n();
   return (
-    <div className={`site-shell${welcome ? " welcome-page" : ""}`}>
+    <div
+      className={`site-shell${welcome ? " welcome-page" : ""}${onboarding ? " auth-onboarding" : ""}`}
+    >
       <a className="skip-link" href="#main">
         {t("layout.skip")}
       </a>

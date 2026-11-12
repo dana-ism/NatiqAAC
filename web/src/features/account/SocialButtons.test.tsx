@@ -70,11 +70,21 @@ beforeEach(() => {
   localStorage.setItem("natiqaac.locale", "en");
   popup = { closed: false, close: vi.fn(), location: { href: "about:blank" } };
   vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
-  fetchMock = vi.fn().mockResolvedValue(
-    json({
-      authorizationUrl:
-        "https://accounts.google.com/o/oauth2/v2/auth?state=synthetic",
-    }),
+  fetchMock = vi.fn().mockImplementation((url: string) =>
+    Promise.resolve(
+      url.endsWith("/context")
+        ? json({
+            provider: "GOOGLE",
+            fullName: "",
+            email: null,
+            emailTrusted: false,
+            linked: false,
+          })
+        : json({
+            authorizationUrl:
+              "https://accounts.google.com/o/oauth2/v2/auth?state=synthetic",
+          }),
+    ),
   );
   vi.stubGlobal("fetch", fetchMock);
   session.adoptSession.mockResolvedValue(true);
@@ -85,6 +95,86 @@ afterEach(() => {
 });
 
 describe("OAuth popup flow", () => {
+  it("uses trusted Google identity without repeating email or password fields", async () => {
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        json(
+          url.endsWith("/context")
+            ? {
+                provider: "GOOGLE",
+                fullName: "Synthetic Provider",
+                email: "synthetic@gmail.com",
+                emailTrusted: true,
+                linked: false,
+              }
+            : {
+                authorizationUrl:
+                  "https://accounts.google.com/o/oauth2/v2/auth",
+              },
+        ),
+      ),
+    );
+    mount({ intent: "register", role: "SPECIALIST" });
+    await start();
+    act(() => callback());
+    expect(await screen.findByLabelText("Full name")).toHaveValue(
+      "Synthetic Provider",
+    );
+    expect(screen.getByText("synthetic@gmail.com")).toBeVisible();
+    expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Continue with Google" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Supporting qualification document"),
+    ).toBeRequired();
+  });
+  it("skips registration for an existing provider identity even from signup", async () => {
+    const result = {
+      message: "ok",
+      access_token: "synthetic",
+      user: {
+        id: "id",
+        fullName: "Synthetic",
+        email: "synthetic@gmail.com",
+        role: "PARENT",
+        status: "ACTIVE",
+      },
+    };
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        json(
+          url.endsWith("/context")
+            ? {
+                provider: "GOOGLE",
+                fullName: "Synthetic",
+                email: "synthetic@gmail.com",
+                emailTrusted: true,
+                linked: true,
+              }
+            : url.endsWith("/finish")
+              ? result
+              : {
+                  authorizationUrl:
+                    "https://accounts.google.com/o/oauth2/v2/auth",
+                },
+        ),
+      ),
+    );
+    mount({ intent: "register", role: "SPECIALIST" });
+    await start();
+    act(() => callback());
+    await waitFor(() =>
+      expect(session.adoptSession).toHaveBeenCalledWith(result),
+    );
+    expect(
+      screen.queryByLabelText("Professional specialization"),
+    ).not.toBeInTheDocument();
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).not.toHaveProperty(
+      "email",
+    );
+  });
   it("starts identity linking through the authenticated account endpoint", async () => {
     session.authenticatedPost.mockResolvedValue({
       authorizationUrl:
@@ -112,7 +202,7 @@ describe("OAuth popup flow", () => {
     act(() => callback());
     expect(await screen.findByLabelText("Full name")).toBeRequired();
     expect(screen.getByLabelText("Email address")).toBeRequired();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
   it("reports blocked popups before making any network requests", () => {
     vi.mocked(window.open).mockReturnValue(null);
@@ -201,6 +291,15 @@ describe("OAuth popup flow", () => {
       )
       .mockResolvedValueOnce(
         json({
+          provider: "FACEBOOK",
+          fullName: "",
+          email: null,
+          emailTrusted: false,
+          linked: false,
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({
           message: "ok",
           onboarding_token: "synthetic-token",
           user: {
@@ -226,7 +325,7 @@ describe("OAuth popup flow", () => {
         name: "Complete your account information",
       }),
     ).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     fireEvent.change(screen.getByLabelText("Full name"), {
       target: { value: "Synthetic" },
     });
@@ -239,9 +338,23 @@ describe("OAuth popup flow", () => {
     fireEvent.change(screen.getByLabelText("Academic qualification"), {
       target: { value: "Degree" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^Continue$/ }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+    fireEvent.change(
+      screen.getByLabelText("Supporting qualification document"),
+      {
+        target: {
+          files: [
+            new File(["%PDF-fixture"], "qualification.pdf", {
+              type: "application/pdf",
+            }),
+          ],
+        },
+      },
+    );
+    fireEvent.submit(
+      screen.getByRole("button", { name: /^Continue$/ }).closest("form")!,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const body = JSON.parse(fetchMock.mock.calls[2][1].body);
     expect(body).toEqual({
       completionId: "synthetic-completion-123456",
       verifier: expect.any(String),
