@@ -196,6 +196,24 @@ for (const locale of ["ar", "en"] as const) {
       .getByRole("button", { name: c["account.apply"], exact: true })
       .click();
     await expect(page).toHaveURL(/\/verification-pending$/);
+    await expect(page.getByLabel(c["auth.email"])).toHaveAttribute(
+      "readonly",
+      "",
+    );
+    await expect(page.getByLabel(c["auth.email"])).toHaveValue(user.email);
+    // Returning unverified Parents must return to verification, not a specialist page.
+    await page
+      .getByRole("link", { name: c["auth.signInLink"], exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/login$/);
+    await page.getByLabel(c["auth.email"]).fill(user.email);
+    await page
+      .getByLabel(c["auth.password"], { exact: true })
+      .fill("Synthetic123!");
+    await page
+      .getByRole("button", { name: c["auth.login"], exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/verification-pending$/);
     await page
       .getByRole("button", { name: c["account.checkVerified"], exact: true })
       .click();
@@ -234,7 +252,7 @@ for (const locale of ["ar", "en"] as const) {
         c["account.verified"],
       );
       expect(confirmations).toBe(1);
-      expect(logins).toBe(1);
+      expect(logins).toBe(2);
       await expect(page).toHaveURL(/\/verification-pending$/);
       await page.screenshot({
         path: `../docs/assets/auth-v3/${locale}-375-cross-device-original.png`,

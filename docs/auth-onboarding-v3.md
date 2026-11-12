@@ -105,6 +105,10 @@ emailTrusted, linked}` with nullable email and `Cache-Control: no-store`. No
 - `/auth/onboarding/me` remains the authenticated status authority across devices.
   Checking never verifies email, creates accounts or upgrades restricted JWTs.
   Refresh/new tabs lose memory-only sessions and require normal authentication.
+  Restricted Parents return to `/verification-pending`, including after password
+  login or an old `/application-status` link; Specialists retain profile access at
+  `/application-status`. Resend uses the authenticated account's read-only email
+  when a session exists, so checking status cannot be confused with another address.
 - All Admin application lists, summary/dashboard counts, detail and PDF reads
   require non-null `emailVerifiedAt`. Decisions recheck this at the locked applicant
   row. Legacy authentication exemptions are unchanged for login but are not treated

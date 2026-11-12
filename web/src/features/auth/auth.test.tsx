@@ -84,6 +84,25 @@ async function login() {
 }
 
 describe("Forms and memory-only authentication with controlled HTTP responses", () => {
+  it("routes a restricted Parent login to email verification without showing specialist status", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        json({ message: "ok", onboarding_token: token(), user }),
+      )
+      .mockResolvedValue(
+        json({ ...identity, emailVerified: false, legacyAuthExempt: false }),
+      );
+    mount();
+    const input = await fill();
+    await input.click(screen.getByRole("button", { name: ar["auth.login"] }));
+    expect(
+      await screen.findByRole("heading", { name: ar["account.pending"] }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: ar["account.status"] }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText(ar["auth.email"])).toHaveValue(identity.email);
+  });
   it("renders labeled Arabic login fields and password visibility with keyboard interaction", async () => {
     mount();
     const input = userEvent.setup();

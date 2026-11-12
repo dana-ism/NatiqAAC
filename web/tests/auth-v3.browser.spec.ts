@@ -8,6 +8,15 @@ import { en } from "../src/i18n/en";
 
 const output = "../docs/assets/auth-v3";
 async function audit(page: Page) {
+  expect(
+    await page
+      .locator(".auth-card label")
+      .evaluateAll((labels) =>
+        labels.every(
+          (label) => Number.parseFloat(getComputedStyle(label).fontSize) >= 14,
+        ),
+      ),
+  ).toBe(true);
   await page.addScriptTag({ content: axe.source });
   expect(
     await page.evaluate(async () =>

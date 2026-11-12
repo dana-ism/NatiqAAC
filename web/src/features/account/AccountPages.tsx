@@ -125,7 +125,10 @@ export function VerificationPendingPage() {
     setFailure(null);
     setDone(false);
     try {
-      await accountApi.resend(email.trim().toLowerCase(), locale);
+      await accountApi.resend(
+        (session.identity?.email ?? email).trim().toLowerCase(),
+        locale,
+      );
       setDone(true);
       setUntil(Date.now() + 60_000);
       setNow(Date.now());
@@ -206,7 +209,8 @@ export function VerificationPendingPage() {
               maxLength={254}
               required
               autoComplete="email"
-              value={email}
+              value={session.identity?.email ?? email}
+              readOnly={!!session.identity?.email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={busy}
             />

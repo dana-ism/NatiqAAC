@@ -86,12 +86,21 @@
 .auth-onboarding .field {
   margin-block: 16px;
 }
+.auth-onboarding .field label,
+.auth-onboarding .switch-copy,
+.auth-onboarding .form-status,
+.auth-onboarding .auth-tabs a,
+.auth-onboarding .section-tag {
+  font-size: 14px;
+}
 .auth-onboarding .text-button {
+  font-size: 14px;
   min-height: 44px;
   padding: 10px 8px;
   white-space: normal;
 }
 .auth-onboarding .primary-button {
+  font-size: 14px;
   min-height: 48px;
   white-space: normal;
   line-height: 1.6;
