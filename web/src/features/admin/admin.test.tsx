@@ -1,3 +1,4 @@
+import { savedAdminProfile } from "../../../tests/profile.fixture";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -79,8 +80,8 @@ it.each(["PARENT", "SPECIALIST"])(
 it("loads backend-projected identity, translates without refetch and signs out locally", async () => {
   mount();
   await login();
-  fetchMock.mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }));
-  expect(await screen.findByText(ar["admin.accountTitle"])).toBeVisible();
+  fetchMock.mockResolvedValueOnce(json(savedAdminProfile));
+  expect(await screen.findByText("Synthetic Admin")).toBeVisible();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
   expect(
     screen.queryByText(ar["admin.accessVerified"]),
@@ -95,7 +96,12 @@ it("loads backend-projected identity, translates without refetch and signs out l
   expect(localStorage.getItem("natiqaac.locale")).toBe("en");
   expect(fetchMock).toHaveBeenCalledTimes(4);
   await userEvent.click(
-    screen.getByRole("button", { name: en["home.signOut"] }),
+    screen.getByRole("button", {
+      name: new RegExp(en["profile.menu"] + ":\\s*Synthetic Admin"),
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("menuitem", { name: en["profile.logout"] }),
   );
   expect(await screen.findByText(en["session.signedOut"])).toBeVisible();
   expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -123,9 +129,11 @@ it("hides protected data on service failure and supports explicit retry", async 
   fetchMock.mockResolvedValueOnce(json({}, 503));
   expect(await screen.findByText(ar["admin.unavailable"])).toBeVisible();
   expect(screen.queryByText(email)).not.toBeInTheDocument();
-  fetchMock.mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }));
+  fetchMock.mockResolvedValueOnce(json(savedAdminProfile));
   fireEvent.click(screen.getByRole("button", { name: ar["session.retry"] }));
-  await waitFor(() => expect(screen.getByText(email)).toBeVisible());
+  await waitFor(() =>
+    expect(screen.getByText("Synthetic Admin")).toBeVisible(),
+  );
 });
 
 it.each([0, 3, 140])(
@@ -134,11 +142,9 @@ it.each([0, 3, 140])(
     mount();
     await login();
     fetchMock
-      .mockResolvedValueOnce(
-        json({ account: { email, role: "ADMIN", emailVerified: false } }),
-      )
+      .mockResolvedValueOnce(json(savedAdminProfile))
       .mockResolvedValueOnce(json(dashboard(pendingCount)));
-    await screen.findByText(email);
+    await screen.findByText("Synthetic Admin");
     await waitFor(() =>
       expect(
         document.querySelector(".admin-pending-count strong"),
@@ -171,9 +177,9 @@ it("announces a loading summary without briefly fabricating an empty queue", asy
   mount();
   await login();
   fetchMock
-    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockResolvedValueOnce(json(savedAdminProfile))
     .mockReturnValueOnce(pending);
-  await screen.findByText(email);
+  await screen.findByText("Synthetic Admin");
   await waitFor(() =>
     expect(document.querySelector(".admin-pending-count")).toHaveAttribute(
       "aria-busy",
@@ -200,13 +206,13 @@ it("does not show zero when the summary fails and retries without reloading the 
   mount();
   await login();
   fetchMock
-    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockResolvedValueOnce(json(savedAdminProfile))
     .mockResolvedValueOnce(json({}, 503));
   expect(await screen.findAllByText(ar["admin.countUnavailable"])).toHaveLength(
     4,
   );
   expect(document.querySelector(".admin-pending-count strong")).toBeNull();
-  expect(screen.getByText(email)).toBeVisible();
+  expect(screen.getByText("Synthetic Admin")).toBeVisible();
   fetchMock.mockResolvedValueOnce(json(dashboard(8)));
   await userEvent.click(
     screen.getByRole("button", { name: ar["session.retry"] }),
@@ -219,7 +225,7 @@ it("does not show zero when the summary fails and retries without reloading the 
     ),
   );
   expect(
-    fetchMock.mock.calls.filter(([url]) => url.endsWith("/admin/overview")),
+    fetchMock.mock.calls.filter(([url]) => url.endsWith("/admin/profile")),
   ).toHaveLength(1);
 });
 
@@ -227,7 +233,7 @@ it("rejects a malformed summary without treating it as an empty queue", async ()
   mount();
   await login();
   fetchMock
-    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockResolvedValueOnce(json(savedAdminProfile))
     .mockResolvedValueOnce(json(dashboard(-1)));
   expect(await screen.findAllByText(ar["admin.countUnavailable"])).toHaveLength(
     4,
@@ -239,9 +245,9 @@ it("keeps one shared Admin layout and switches the single current navigation des
   mount();
   await login();
   fetchMock
-    .mockResolvedValueOnce(json({ account: { email, role: "ADMIN" } }))
+    .mockResolvedValueOnce(json(savedAdminProfile))
     .mockResolvedValueOnce(json(dashboard(0)));
-  await screen.findByText(email);
+  await screen.findByText("Synthetic Admin");
   expect(document.querySelectorAll('nav [aria-current="page"]')).toHaveLength(
     1,
   );
@@ -286,10 +292,8 @@ it.each(futureAdminSections)(
   async (section) => {
     mount();
     await login();
-    fetchMock.mockResolvedValueOnce(
-      json({ account: { email, role: "ADMIN" } }),
-    );
-    await screen.findByText(email);
+    fetchMock.mockResolvedValueOnce(json(savedAdminProfile));
+    await screen.findByText("Synthetic Admin");
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
     await userEvent.click(
       screen.getByRole("link", { name: new RegExp("^" + ar[section.title]) }),

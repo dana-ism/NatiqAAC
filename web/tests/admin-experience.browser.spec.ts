@@ -1,3 +1,4 @@
+import { savedAdminProfile } from "./profile.fixture";
 import { expect, test, type Page } from "@playwright/test";
 import axe from "axe-core";
 import { ar } from "../src/i18n/ar";
@@ -78,8 +79,7 @@ for (const width of [320, 375, 768, 1024, 1440, 1920])
             email: "admin@example.com",
             role: "ADMIN",
           };
-        else if (path === "/admin/overview")
-          body = { account: { email: "admin@example.com", role: "ADMIN" } };
+        else if (path === "/admin/profile") body = savedAdminProfile;
         else if (path.endsWith("/dashboard"))
           body = {
             pendingCount: 140,

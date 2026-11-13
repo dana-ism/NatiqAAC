@@ -1,3 +1,4 @@
+import { savedAdminProfile } from "./profile.fixture";
 import { expect, test, type Page } from "@playwright/test";
 import axe from "axe-core";
 test.setTimeout(60_000);
@@ -285,8 +286,12 @@ for (const width of [320, 375, 768, 1024, 1440]) {
           expect(verified && document).toBe(true);
           status = "PENDING_REVIEW";
         } else if (path === "/specialist/application/me") body = application();
-        else if (path === "/admin/overview")
-          body = { account: { email: user.email, role: user.role } };
+        else if (path === "/admin/profile")
+          body = {
+            ...savedAdminProfile,
+            fullName: user.fullName,
+            email: user.email,
+          };
         else if (path === "/admin/specialist-applications/dashboard")
           body = {
             pendingCount: status === "PENDING_REVIEW" ? 1 : 0,
