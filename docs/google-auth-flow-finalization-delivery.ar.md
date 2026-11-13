@@ -67,8 +67,12 @@
     الخاص الفعلي قبل الإصدار. الاختبارات المعزولة لا تثبت هذه الخدمات الخارجية.
     لا موافقات جديدة معلقة ضمن التوسعة المحدودة التي أقرها المالك.
 20. **Git:** الفرع `feature/google-auth-flow-finalization`، والأساس المتوافق
-    `feature/auth-onboarding-ux-v3` عند `7230eaa` وPR #10. سيُسجل رابط PR ومعرّف
-    commit بعد مراجعة الفحوص والدفع. لا merge تلقائيًا.
+    `feature/auth-onboarding-ux-v3` عند `7230eaa` وPR #10. حُفظ التنفيذ في
+    `267a73df02bb885041a1c47385a0d3f29e3b81b1` ودُفع إلى origin.
+    [PR #11](https://github.com/dana-ism/NatiqAAC/pull/11) مفتوح على هذا الأساس،
+    ويحتوي [قائمة الملفات الكاملة](https://github.com/dana-ism/NatiqAAC/pull/11/files).
+    يتبع حفظ التقرير هذا commit التنفيذ؛ أحدث رأس للفرع ظاهر في PR. لم يُدمج
+    PR الجديد أو أي PR من سلسلة الاعتماد.
 
 ## سجل التحقق
 
