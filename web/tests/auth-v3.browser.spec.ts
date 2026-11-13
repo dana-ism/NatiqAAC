@@ -188,7 +188,7 @@ for (const locale of ["ar", "en"] as const) {
                 emailTrusted: provider === "GOOGLE",
                 linked: false,
               }
-            : { message: "Conflict" };
+            : { message: "Conflict", code: "OAUTH_EMAIL_CONFLICT" };
         return route.fulfill({
           status: path.endsWith("/finish") ? 409 : 200,
           headers,
@@ -210,9 +210,10 @@ for (const locale of ["ar", "en"] as const) {
         .click();
       await opened;
       await expect(page.getByLabel(c["account.specialization"])).toBeVisible();
-      await expect(page.getByLabel(c["auth.fullName"])).toHaveValue(
-        "Synthetic Specialist",
-      );
+      await expect(
+        page.getByText("Synthetic Specialist", { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByLabel(c["auth.fullName"])).toHaveCount(0);
       await expect(
         page.getByLabel(c["auth.password"], { exact: true }),
       ).toHaveCount(0);
@@ -248,7 +249,7 @@ for (const locale of ["ar", "en"] as const) {
         .click();
       await expect(page.getByRole("alert")).toBeVisible();
       await expect(
-        page.getByText(c["account.socialConflict"], { exact: false }),
+        page.getByText(c["account.googleEmailConflict"], { exact: false }),
       ).toBeVisible();
       await audit(page);
       await capture(page, `${locale}-375-${provider.toLowerCase()}-conflict`);

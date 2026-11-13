@@ -14,6 +14,8 @@ import { SocialButtons } from "./SocialButtons";
 const session = vi.hoisted(() => ({
   adoptSession: vi.fn(),
   authenticatedPost: vi.fn(),
+  signOut: vi.fn(),
+  uploadDocument: vi.fn(),
 }));
 vi.mock("../auth/session-context", () => ({ useSession: () => session }));
 let popup: {
@@ -95,6 +97,102 @@ afterEach(() => {
 });
 
 describe("OAuth popup flow", () => {
+  it.each(["register", "login"] as const)(
+    "completes a Google Parent from %s without redundant identity fields",
+    async (intent) => {
+      const result = {
+        message: "ok",
+        access_token: "synthetic",
+        user: {
+          id: "id",
+          fullName: "Synthetic Parent",
+          email: "synthetic@gmail.com",
+          role: "PARENT",
+          status: "ACTIVE",
+        },
+      };
+      fetchMock.mockImplementation((url: string) =>
+        Promise.resolve(
+          json(
+            url.endsWith("/context")
+              ? {
+                  provider: "GOOGLE",
+                  fullName: "Synthetic Parent",
+                  email: "synthetic@gmail.com",
+                  emailTrusted: true,
+                  linked: false,
+                }
+              : url.endsWith("/finish")
+                ? result
+                : {
+                    authorizationUrl:
+                      "https://accounts.google.com/o/oauth2/v2/auth",
+                  },
+          ),
+        ),
+      );
+      mount(intent === "register" ? { intent, role: "PARENT" } : { intent });
+      await start();
+      act(() => callback());
+      if (intent === "login") {
+        fireEvent.click(
+          await screen.findByRole("button", { name: "Parent account" }),
+        );
+      }
+      await waitFor(() =>
+        expect(session.adoptSession).toHaveBeenCalledWith(result),
+      );
+      expect(screen.queryByLabelText("Full name")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+      const body = JSON.parse(fetchMock.mock.calls[2][1].body);
+      expect(body).toEqual({
+        completionId: "synthetic-completion-123456",
+        verifier: expect.any(String),
+        locale: "en",
+        ...(intent === "login" ? { registrationRole: "PARENT" } : {}),
+      });
+      expect(fetchMock.mock.calls[1][1].body).toContain(body.verifier);
+    },
+  );
+  it("offers Specialist completion from Login on the same proof", async () => {
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        json(
+          url.endsWith("/context")
+            ? {
+                provider: "GOOGLE",
+                fullName: "Synthetic Specialist",
+                email: "synthetic@gmail.com",
+                emailTrusted: true,
+                linked: false,
+              }
+            : {
+                authorizationUrl:
+                  "https://accounts.google.com/o/oauth2/v2/auth",
+              },
+        ),
+      ),
+    );
+    mount();
+    await start();
+    act(() => callback());
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Specialist application" }),
+    );
+    expect(
+      await screen.findByLabelText("Professional specialization"),
+    ).toBeRequired();
+    expect(
+      screen.getByLabelText("Supporting qualification document"),
+    ).toBeRequired();
+    expect(screen.queryByLabelText("Full name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    ).toBeEnabled();
+  });
   it("uses trusted Google identity without repeating email or password fields", async () => {
     fetchMock.mockImplementation((url: string) =>
       Promise.resolve(
@@ -117,9 +215,8 @@ describe("OAuth popup flow", () => {
     mount({ intent: "register", role: "SPECIALIST" });
     await start();
     act(() => callback());
-    expect(await screen.findByLabelText("Full name")).toHaveValue(
-      "Synthetic Provider",
-    );
+    expect(await screen.findByText("Synthetic Provider")).toBeVisible();
+    expect(screen.queryByLabelText("Full name")).not.toBeInTheDocument();
     expect(screen.getByText("synthetic@gmail.com")).toBeVisible();
     expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
@@ -261,6 +358,15 @@ describe("OAuth popup flow", () => {
           authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
         }),
       )
+      .mockResolvedValueOnce(
+        json({
+          provider: "GOOGLE",
+          linked: true,
+          fullName: "Synthetic Parent",
+          email: "synthetic@example.com",
+          emailTrusted: true,
+        }),
+      )
       .mockResolvedValueOnce(json(result));
     mount();
     await start();
@@ -268,7 +374,7 @@ describe("OAuth popup flow", () => {
     await waitFor(() =>
       expect(session.adoptSession).toHaveBeenCalledWith(result),
     );
-    const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+    const body = JSON.parse(fetchMock.mock.calls[2][1].body);
     expect(Object.keys(body).sort()).toEqual(["completionId", "verifier"]);
     expect(body.verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
     const challenge = Buffer.from(

@@ -19,6 +19,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [socialActive, setSocialActive] = useState(false);
   const [visible, setVisible] = useState(false);
   const session = useSession();
   const navigate = useNavigate();
@@ -33,23 +34,26 @@ export function AuthPage({ register = false }: { register?: boolean }) {
       request.current?.abort();
     };
   }, []);
-  if (session.status === "authenticated")
-    return <Navigate to="/home" replace />;
-  if (session.status === "onboarding")
+  // Only explicit internal destinations are permitted after fresh authentication.
+  const afterLogin =
+    location.state?.from === "/account/connections"
+      ? "/account/connections"
+      : "/home";
+  if (!socialActive && session.status === "authenticated")
+    return <Navigate to={afterLogin} replace />;
+  if (!socialActive && session.status === "onboarding")
     return (
       <Navigate
         to={
-          session.identity?.role === "PARENT"
-            ? "/verification-pending"
-            : "/application-status"
+          afterLogin === "/account/connections"
+            ? afterLogin
+            : session.identity?.role === "PARENT"
+              ? "/verification-pending"
+              : "/application-status"
         }
         replace
       />
     );
-  const afterLogin =
-    typeof location.state?.from === "string" && location.state.from === "/home"
-      ? location.state.from
-      : "/home";
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
@@ -165,7 +169,10 @@ export function AuthPage({ register = false }: { register?: boolean }) {
     );
   }
   return (
-    <section className="auth-card" aria-labelledby="auth-title">
+    <section
+      className={`auth-card${socialActive ? " account-card" : ""}`}
+      aria-labelledby="auth-title"
+    >
       <span className="section-tag">
         {t(register ? "auth.registerTag" : "auth.loginTag")}
       </span>
@@ -175,65 +182,84 @@ export function AuthPage({ register = false }: { register?: boolean }) {
       <p className="form-intro">
         {t(register ? "auth.registerDescription" : "auth.loginDescription")}
       </p>
-      <div className="auth-tabs" aria-label={t("auth.options")}>
-        <Link to="/login" aria-current={!register ? "page" : undefined}>
-          {t("auth.login")}
-        </Link>
-        <Link to="/register" aria-current={register ? "page" : undefined}>
-          {t("auth.register")}
-        </Link>
-      </div>
-      {!register && location.state?.registered && (
+      {!socialActive && (
+        <div className="auth-tabs" aria-label={t("auth.options")}>
+          <Link to="/login" aria-current={!register ? "page" : undefined}>
+            {t("auth.login")}
+          </Link>
+          <Link to="/register" aria-current={register ? "page" : undefined}>
+            {t("auth.register")}
+          </Link>
+        </div>
+      )}
+      {!socialActive && !register && location.state?.registered && (
         <p className="alert success-alert" role="status">
           {t("auth.registered")}
         </p>
       )}
-      {session.notice && (
+      {!socialActive && session.notice && (
         <p className="alert info-alert" role="status">
           {t(session.notice)}
         </p>
       )}
       <ErrorAlert error={failure} context={register ? "register" : "login"} />
-      <form
-        ref={form}
-        onSubmit={(e) => void submit(e)}
-        noValidate
-        aria-busy={busy}
-      >
-        {register && field("fullName", t("auth.fullName"), "text", "name")}
-        {field("email", t("auth.email"), "email", "email")}
-        {field(
-          "password",
-          t("auth.password"),
-          "password",
-          register ? "new-password" : "current-password",
-        )}
-        <button type="submit" className="primary-button" disabled={busy}>
-          {busy ? (
-            <>
-              <span className="spinner" aria-hidden="true" />{" "}
-              {t(register ? "auth.creating" : "auth.signingIn")}
-            </>
-          ) : (
-            <>
-              {t(register ? "auth.createParent" : "auth.login")}
-              <span className="directional-arrow" aria-hidden="true">
-                ←
-              </span>
-            </>
+      {!socialActive && (
+        <form
+          ref={form}
+          onSubmit={(e) => void submit(e)}
+          noValidate
+          aria-busy={busy}
+        >
+          {register && field("fullName", t("auth.fullName"), "text", "name")}
+          {field("email", t("auth.email"), "email", "email")}
+          {field(
+            "password",
+            t("auth.password"),
+            "password",
+            register ? "new-password" : "current-password",
           )}
-        </button>
-        <p className="form-status" role="status">
-          {busy ? t("auth.wait") : ""}
+          <button type="submit" className="primary-button" disabled={busy}>
+            {busy ? (
+              <>
+                <span className="spinner" aria-hidden="true" />{" "}
+                {t(register ? "auth.creating" : "auth.signingIn")}
+              </>
+            ) : (
+              <>
+                {t(register ? "auth.createParent" : "auth.login")}
+                <span className="directional-arrow" aria-hidden="true">
+                  ←
+                </span>
+              </>
+            )}
+          </button>
+          <p className="form-status" role="status">
+            {busy ? t("auth.wait") : ""}
+          </p>
+        </form>
+      )}
+      {!register && (
+        <SocialButtons
+          intent="login"
+          successPath={afterLogin}
+          disabled={busy}
+          onStageChange={(active) => {
+            setSocialActive(active);
+            if (active) {
+              setFailure(null);
+              setErrors({});
+            }
+          }}
+        />
+      )}
+      {!socialActive && (
+        <p className="switch-copy">
+          {t(register ? "auth.already" : "auth.firstVisit")}{" "}
+          <Link to={register ? "/login" : "/register"}>
+            {t(register ? "auth.signInLink" : "auth.createLink")}
+          </Link>
         </p>
-      </form>
-      {!register && <SocialButtons intent="login" />}
-      <p className="switch-copy">
-        {t(register ? "auth.already" : "auth.firstVisit")}{" "}
-        <Link to={register ? "/login" : "/register"}>
-          {t(register ? "auth.signInLink" : "auth.createLink")}
-        </Link>
-      </p>
+      )}
       <div className="session-note">
         <svg
           width="18"

@@ -239,6 +239,95 @@ describe('OAuth HTTP transport and account lifecycle on isolated infrastructure'
       .post('/auth/oauth/finish')
       .send({ ...proof, ...fields });
 
+  it.each(['PARENT', 'SPECIALIST'] as const)(
+    'binds Login role %s to one validated transaction and retains specialist restrictions',
+    async (role) => {
+      const subject = identity('GOOGLE');
+      const proof = await callback(await start('GOOGLE', 'login'), subject);
+      await finish(proof, { registrationRole: 'ADMIN' }).expect(400);
+      await finish(
+        { ...proof, verifier: opaque() },
+        { registrationRole: role },
+      ).expect(401);
+      expect(await prisma.user.count({ where: { email: subject.email } })).toBe(
+        0,
+      );
+      const fields = {
+        registrationRole: role,
+        ...(role === 'SPECIALIST'
+          ? {
+              specialization: 'Communication',
+              qualification: 'Synthetic degree',
+            }
+          : {}),
+      };
+      const registered = await finish(proof, fields).expect(200);
+      expect(registered.body.user.role).toBe(role);
+      await finish(proof, fields).expect(401);
+      const stored = await prisma.user.findUniqueOrThrow({
+        where: { id: registered.body.user.id },
+        include: { specialistApplication: true },
+      });
+      expect(stored.passwordHash).toBeNull();
+      expect(stored.emailVerifiedAt).not.toBeNull();
+      if (role === 'SPECIALIST') {
+        expect(stored.specialistApplication).toMatchObject({
+          status: 'DRAFT',
+          documentKey: null,
+          submittedAt: null,
+        });
+        expect(registered.body.access_token).toBeUndefined();
+      }
+      const token =
+        registered.body.access_token ?? registered.body.onboarding_token;
+      await request(app.getHttpServer())
+        .get('/auth/me')
+        .auth(token, { type: 'bearer' })
+        .expect(role === 'PARENT' ? 200 : 401);
+      await request(app.getHttpServer())
+        .get('/admin/overview')
+        .auth(token, { type: 'bearer' })
+        .expect(role === 'PARENT' ? 403 : 401);
+      const override = await callback(await start('GOOGLE', 'login'), subject);
+      const denied = await finish(override, {
+        registrationRole: role === 'PARENT' ? 'SPECIALIST' : 'PARENT',
+      }).expect(409);
+      expect(denied.body.code).toBe('OAUTH_IDENTITY_CONFLICT');
+      const login = await finish(
+        await callback(await start('GOOGLE', 'login'), subject),
+      ).expect(200);
+      expect(login.body.user.id).toBe(stored.id);
+      expect(login.body.user.role).toBe(role);
+      expect(await prisma.user.count({ where: { email: subject.email } })).toBe(
+        1,
+      );
+    },
+  );
+
+  it('permits only one concurrent registration from a Login proof', async () => {
+    const subject = identity('GOOGLE');
+    const proof = await callback(await start('GOOGLE', 'login'), subject);
+    const results = await Promise.all([
+      finish(proof, { registrationRole: 'PARENT' }),
+      finish(proof, {
+        registrationRole: 'SPECIALIST',
+        specialization: 'Communication',
+        qualification: 'Degree',
+      }),
+    ]);
+    expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([
+      200, 401,
+    ]);
+    expect(await prisma.user.count({ where: { email: subject.email } })).toBe(
+      1,
+    );
+    expect(
+      await prisma.authIdentity.count({
+        where: { provider: 'GOOGLE', subject: subject.subject },
+      }),
+    ).toBe(1);
+  });
+
   it.each([
     ['GOOGLE', 'PARENT'],
     ['GOOGLE', 'SPECIALIST'],
@@ -435,6 +524,63 @@ describe('OAuth HTTP transport and account lifecycle on isolated infrastructure'
     expect(await prisma.user.count({ where: { email: subject.email } })).toBe(
       0,
     );
+  });
+
+  it('rejects Login role selection after its server completion expires', async () => {
+    const subject = identity('GOOGLE');
+    const proof = await callback(await start('GOOGLE', 'login'), subject);
+    // Expire only this suite-owned key, never flush shared Redis.
+    await redis.pExpire(redisKey('completion', proof.completionId), 1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await finish(proof, { registrationRole: 'PARENT' }).expect(401);
+    expect(await prisma.user.count({ where: { email: subject.email } })).toBe(
+      0,
+    );
+  });
+
+  it('does not link an existing email through Login role selection', async () => {
+    const subject = identity('GOOGLE');
+    const existing = await prisma.user.create({
+      data: {
+        email: subject.email!,
+        fullName: 'Synthetic existing specialist',
+        role: 'SPECIALIST',
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const proof = await callback(await start('GOOGLE', 'login'), subject);
+    const denied = await finish(proof, { registrationRole: 'PARENT' }).expect(
+      409,
+    );
+    expect(denied.body.code).toBe('OAUTH_EMAIL_CONFLICT');
+    expect(
+      await prisma.authIdentity.count({ where: { userId: existing.id } }),
+    ).toBe(0);
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: existing.id } }))
+        .role,
+    ).toBe('SPECIALIST');
+  });
+
+  it('keeps distinct concurrent Login proofs for one email from creating duplicate accounts', async () => {
+    const address = email();
+    const proofs = await Promise.all(
+      [identity('GOOGLE', address), identity('GOOGLE', address)].map(
+        async (subject) => callback(await start('GOOGLE', 'login'), subject),
+      ),
+    );
+    const results = await Promise.all(
+      proofs.map((proof) => finish(proof, { registrationRole: 'PARENT' })),
+    );
+    expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([
+      200, 409,
+    ]);
+    expect(await prisma.user.count({ where: { email: address } })).toBe(1);
+    const account = await prisma.user.findUniqueOrThrow({
+      where: { email: address },
+      include: { identities: true },
+    });
+    expect(account.identities).toHaveLength(1);
   });
 
   it('allows only one concurrent callback and finish against real Redis', async () => {

@@ -11,7 +11,10 @@ import {
   tokenHash,
 } from './account-lifecycle.service';
 import { EmailDomainService } from './email-domain.service';
-import { OAuthAccountsService } from './oauth-accounts.service';
+import {
+  OAuthAccountsService,
+  type OAuthAccountInput,
+} from './oauth-accounts.service';
 import type { OAuthCompletion } from './oauth-flow.service';
 
 const userId = 'b3e66354-7fa7-4597-9246-6e9ca674c99b';
@@ -111,6 +114,100 @@ describe('OAuthAccountsService', () => {
       kind: 'welcome',
       eventKey: `welcome:${data.id}`,
     });
+  });
+  it('creates a passwordless trusted Google Parent from Login after explicit public role selection', async () => {
+    await service.complete(
+      { ...base, intent: 'login', role: undefined },
+      { registrationRole: 'PARENT' },
+    );
+    const data = prisma.user.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      role: 'PARENT',
+      passwordHash: null,
+      emailVerifiedAt: expect.any(Date),
+    });
+    expect(data).not.toHaveProperty('verification');
+    expect(lifecycle.notify).toHaveBeenCalledWith(
+      expect.anything(),
+      'welcome',
+      expect.any(String),
+      expect.any(String),
+    );
+  });
+  it('keeps the new login Specialist a draft and requires professional details', async () => {
+    const tx = { ...base, intent: 'login' as const, role: undefined };
+    await expect(
+      service.complete(tx, { registrationRole: 'SPECIALIST' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await service.complete(tx, {
+      registrationRole: 'SPECIALIST',
+      specialization: 'Communication',
+      qualification: 'Synthetic degree',
+    });
+    expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({
+      role: 'SPECIALIST',
+      passwordHash: null,
+      specialistApplication: { create: { status: 'DRAFT' } },
+    });
+  });
+  it.each(['ADMIN', '', null, 42])(
+    'rejects invalid finish role %s before creating any account',
+    async (role) => {
+      await expect(
+        service.complete({ ...base, intent: 'login', role: undefined }, {
+          registrationRole: role,
+        } as OAuthAccountInput),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(sessions.issue).not.toHaveBeenCalled();
+    },
+  );
+  it('never accepts a public role override for a linked account', async () => {
+    prisma.authIdentity.findUnique.mockResolvedValue({ userId });
+    await expect(
+      service.complete(
+        { ...base, intent: 'login', role: undefined },
+        { registrationRole: 'SPECIALIST' },
+      ),
+    ).rejects.toMatchObject({ response: { code: 'OAUTH_IDENTITY_CONFLICT' } });
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(sessions.issue).not.toHaveBeenCalled();
+  });
+  it.each([
+    { ...base },
+    { ...base, intent: 'link' as const, role: undefined, linkUserId: userId },
+    {
+      ...base,
+      intent: 'login' as const,
+      role: undefined,
+      identity: { ...base.identity, provider: 'FACEBOOK' as const },
+    },
+  ])(
+    'rejects finish role outside a new Google Login transaction',
+    async (tx) => {
+      await expect(
+        service.complete(tx, { registrationRole: 'PARENT' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(prisma.authIdentity.create).not.toHaveBeenCalled();
+    },
+  );
+  it('does not exempt an untrusted external Google mailbox in the Login registration path', async () => {
+    await service.complete(
+      {
+        ...base,
+        intent: 'login',
+        role: undefined,
+        identity: {
+          ...base.identity,
+          email: 'external@example.org',
+          emailTrusted: false,
+        },
+      },
+      { registrationRole: 'PARENT' },
+    );
+    expect(prisma.user.create.mock.calls[0][0].data.emailVerifiedAt).toBeNull();
+    expect(lifecycle.notify.mock.calls[0][1]).toBe('verification');
   });
   it('projects only the browser-bound provider summary without local account or provider secrets', async () => {
     prisma.authIdentity.findUnique.mockResolvedValue({ userId });
