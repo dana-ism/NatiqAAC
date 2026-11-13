@@ -18,7 +18,16 @@ import { EmailDomainService } from './email-domain.service';
 import { normalizeEmail } from './normalize-email';
 import type { OAuthCompletion } from './oauth-flow.service';
 
+const conflict = (code: string, message: string) =>
+  new ConflictException({
+    statusCode: 409,
+    error: 'Conflict',
+    message,
+    code,
+  });
+
 export interface OAuthAccountInput {
+  registrationRole?: 'PARENT' | 'SPECIALIST';
   fullName?: string;
   email?: string;
   specialization?: string;
@@ -69,6 +78,15 @@ export class OAuthAccountsService {
     ) {
       throw new BadRequestException('Invalid provider account request');
     }
+    if (
+      input.registrationRole !== undefined &&
+      (transaction.intent !== 'login' ||
+        identity.provider !== 'GOOGLE' ||
+        !['PARENT', 'SPECIALIST'].includes(input.registrationRole))
+    )
+      throw new BadRequestException(
+        'Role selection is only allowed for new Google login accounts',
+      );
     if (transaction.intent === 'link') {
       if (!transaction.linkUserId)
         throw new BadRequestException('Invalid provider linking request');
@@ -92,7 +110,8 @@ export class OAuthAccountsService {
             select: { userId: true },
           });
           if (linked && linked.userId !== userId)
-            throw new ConflictException(
+            throw conflict(
+              'OAUTH_IDENTITY_CONFLICT',
               'Provider identity is already connected to another account',
             );
           if (linked) return;
@@ -101,7 +120,8 @@ export class OAuthAccountsService {
             select: { id: true },
           });
           if (existing)
-            throw new ConflictException(
+            throw conflict(
+              'OAUTH_PROVIDER_ALREADY_LINKED',
               'Account already has a connection to this provider',
             );
           await tx.authIdentity.create({
@@ -117,7 +137,10 @@ export class OAuthAccountsService {
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
         )
-          throw new ConflictException('Provider identity is already connected');
+          throw conflict(
+            'OAUTH_IDENTITY_CONFLICT',
+            'Provider identity is already connected',
+          );
         throw error;
       }
       return this.sessions.issue(userId);
@@ -131,12 +154,23 @@ export class OAuthAccountsService {
       },
       select: { userId: true },
     });
-    if (linked) return this.sessions.issue(linked.userId);
-    if (transaction.intent !== 'register')
-      throw new ConflictException(
+    if (linked) {
+      if (input.registrationRole !== undefined)
+        throw conflict(
+          'OAUTH_IDENTITY_CONFLICT',
+          'Identity is already registered. Start a fresh sign-in attempt',
+        );
+      return this.sessions.issue(linked.userId);
+    }
+    const role =
+      transaction.intent === 'register'
+        ? transaction.role
+        : input.registrationRole;
+    if (!role)
+      throw conflict(
+        'OAUTH_REGISTRATION_REQUIRED',
         'Please choose an account type and register first',
       );
-    const role = transaction.role!;
     const fullName = (input.fullName ?? identity.fullName).trim();
     if (!fullName || fullName.length > 100)
       throw new BadRequestException('Full name is required');
@@ -166,7 +200,8 @@ export class OAuthAccountsService {
         select: { id: true },
       })
     ) {
-      throw new ConflictException(
+      throw conflict(
+        'OAUTH_EMAIL_CONFLICT',
         'Email is already registered. Sign in to the existing account before connecting another identity',
       );
     }
@@ -239,7 +274,8 @@ export class OAuthAccountsService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       )
-        throw new ConflictException(
+        throw conflict(
+          'OAUTH_IDENTITY_CONFLICT',
           'Account identity is already registered. Please sign in again',
         );
       throw error;

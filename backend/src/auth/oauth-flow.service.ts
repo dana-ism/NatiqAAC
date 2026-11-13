@@ -60,7 +60,12 @@ const digest = (value: string) =>
   createHash('sha256').update(value).digest('base64url');
 const opaquePattern = /^[A-Za-z0-9_-]{43}$/;
 const invalid = () =>
-  new UnauthorizedException('Provider authentication failed');
+  new UnauthorizedException({
+    statusCode: 401,
+    error: 'Unauthorized',
+    message: 'Provider authentication failed',
+    code: 'OAUTH_TRANSACTION_INVALID',
+  });
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 

@@ -1,6 +1,23 @@
 import { useI18n } from "../../i18n/context";
 
 export const accountEn = {
+  "account.googleEmailConflict":
+    "An account already uses this email. Sign in using its existing method, then explicitly connect Google or Facebook from Account connections.",
+  "account.signInToLink": "Sign in to connect your account",
+  "account.identityConflict":
+    "An account or provider identity is already registered or connected. Start a fresh sign-in attempt; no duplicate account was created.",
+  "account.providerAlreadyLinked":
+    "Your account already has a different identity connected with this provider. No connection was changed.",
+  "account.registrationRequired":
+    "Choose an account type to create your account with this provider.",
+  "account.transactionExpired":
+    "This sign-in attempt expired or is no longer valid. Start again to continue securely.",
+  "account.signInUnavailable":
+    "The sign-in service is temporarily unavailable. Refresh the page and try again later.",
+  "account.providerVerified": "Email verified by Google",
+  "account.linkedProvider": "Your sign-in method was connected successfully.",
+  "account.oauthSessionFailed":
+    "Your sign-in session could not be confirmed. Start a fresh sign-in attempt.",
   "account.confirmPassword": "Confirm password",
   "account.passwordMismatch":
     "The passwords do not match. Enter the same password in both fields.",
@@ -103,6 +120,23 @@ export const accountEn = {
 } as const;
 
 export const accountAr: Record<keyof typeof accountEn, string> = {
+  "account.googleEmailConflict":
+    "يوجد حساب بهذا البريد. سجّل الدخول بطريقته الحالية، ثم اختر ربط Google أو Facebook صراحةً من اتصالات الحساب.",
+  "account.signInToLink": "تسجيل الدخول لربط الحساب",
+  "account.identityConflict":
+    "الحساب أو هوية المزوّد مسجّلة أو مرتبطة بالفعل. ابدأ محاولة دخول جديدة؛ لم يُنشأ حساب مكرر.",
+  "account.providerAlreadyLinked":
+    "يوجد ارتباط بهوية أخرى لهذا المزوّد في حسابك. لم يُغيّر أي ارتباط.",
+  "account.registrationRequired":
+    "اختر نوع الحساب لإنشاء حسابك باستخدام هذا المزوّد.",
+  "account.transactionExpired":
+    "انتهت محاولة الدخول أو لم تعد صالحة. ابدأ مجددًا للمتابعة بأمان.",
+  "account.signInUnavailable":
+    "خدمة تسجيل الدخول غير متاحة مؤقتًا. حدّث الصفحة وحاول لاحقًا.",
+  "account.providerVerified": "البريد مؤكّد لدى Google",
+  "account.linkedProvider": "تم ربط طريقة تسجيل الدخول بنجاح.",
+  "account.oauthSessionFailed":
+    "تعذّر تأكيد جلسة الدخول. ابدأ محاولة دخول جديدة.",
   "account.confirmPassword": "تأكيد كلمة المرور",
   "account.passwordMismatch":
     "كلمتا المرور غير متطابقتين. أدخل كلمة المرور نفسها في الحقلين.",

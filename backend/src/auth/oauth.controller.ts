@@ -51,6 +51,9 @@ export class OAuthContextDto {
   @Matches(/^[A-Za-z0-9_-]{43}$/) verifier: string;
 }
 export class OAuthFinishDto extends OAuthContextDto {
+  @IsOptional()
+  @IsIn(['PARENT', 'SPECIALIST'])
+  registrationRole?: OAuthPublicRole;
   @IsOptional() @Transform(trim) @IsString() @Length(1, 100) fullName?: string;
   @IsOptional() @Transform(trim) @IsEmail() @MaxLength(254) email?: string;
   @IsOptional()

@@ -5,7 +5,7 @@ import type { AuthUser } from "../auth/types";
 import { useI18n } from "../../i18n/context";
 import type { Locale } from "../../i18n/messages";
 import { apiBase, record, request } from "../../shared/api";
-import { ErrorAlert } from "../../shared/Feedback";
+import { SocialError, type SocialFailure } from "./SocialError";
 import { useAccountCopy } from "./account.messages";
 import { messageResult } from "./account.api";
 
@@ -28,6 +28,7 @@ interface Props {
   registration?: Signup;
   onStageChange?: (active: boolean) => void;
   disabled?: boolean;
+  successPath?: "/home" | "/account/connections";
 }
 interface Flow {
   popup: Window;
@@ -37,6 +38,8 @@ interface Flow {
   controller: AbortController;
   cleanup(): void;
   finishing?: boolean;
+  role?: "PARENT" | "SPECIALIST";
+  registrationRole?: "PARENT" | "SPECIALIST";
 }
 
 interface ProviderContext {
@@ -104,6 +107,7 @@ export function SocialButtons({
   registration = {},
   onStageChange,
   disabled = false,
+  successPath = "/home",
 }: Props) {
   const { t, locale } = useI18n();
   const c = useAccountCopy();
@@ -124,9 +128,12 @@ export function SocialButtons({
   const active = useRef<Flow | null>(null);
   const mounted = useRef(true);
   const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<unknown>(null);
+  const [failure, setFailure] = useState<SocialFailure | null>(null);
   const [notice, setNotice] = useState("");
-  const [completion, setCompletion] = useState(false);
+  const [completion, setCompletion] = useState<"none" | "role" | "profile">(
+    "none",
+  );
+  const [selectedRole, setSelectedRole] = useState(role);
   const [fields, setFields] = useState<Signup>({});
   const [identity, setIdentity] = useState<ProviderContext | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -144,7 +151,7 @@ export function SocialButtons({
     active.current = null;
     if (mounted.current) {
       setBusy(false);
-      setCompletion(false);
+      setCompletion("none");
       setIdentity(null);
       setFailure(null);
       setFields({});
@@ -163,15 +170,29 @@ export function SocialButtons({
         body: {
           completionId: flow.completionId,
           verifier: flow.verifier,
-          ...(intent === "register" ? signupFields(values, locale) : {}),
+          ...(intent === "register" || flow.registrationRole
+            ? signupFields(values, locale)
+            : {}),
+          ...(flow.registrationRole
+            ? { registrationRole: flow.registrationRole }
+            : {}),
         },
         signal: flow.controller.signal,
       });
       if (!mounted.current || active.current !== flow) return;
       const accepted = await session.adoptSession(result);
       if (!mounted.current || active.current !== flow) return;
+      if (!accepted) {
+        stop();
+        setNotice(c("account.oauthSessionFailed"));
+        return;
+      }
       let setupError = false;
-      if (accepted && intent === "register" && role === "SPECIALIST" && file) {
+      if (
+        (intent === "register" || flow.registrationRole) &&
+        flow.role === "SPECIALIST" &&
+        file
+      ) {
         try {
           const body = new FormData();
           body.append("document", file);
@@ -187,13 +208,24 @@ export function SocialButtons({
       }
       stop();
       if (accepted)
-        navigate(setupError ? "/application-status" : "/home", {
-          replace: true,
-          state: { setupError },
-        });
+        navigate(
+          intent === "link"
+            ? "/account/connections"
+            : setupError
+              ? "/application-status"
+              : successPath,
+          {
+            replace: true,
+            state: {
+              setupError,
+              ...(intent === "link" ? { linkedProvider: flow.provider } : {}),
+            },
+          },
+        );
     } catch (error) {
       if (!flow.controller.signal.aborted && mounted.current) {
-        setFailure(error);
+        if (completion === "none") stop();
+        setFailure({ error, phase: "finish" });
         setBusy(false);
         setFinishFailed(true);
       }
@@ -203,7 +235,8 @@ export function SocialButtons({
     if (active.current) return;
     setFailure(null);
     setNotice("");
-    setCompletion(false);
+    setCompletion("none");
+    setSelectedRole(role);
     setFields({});
     setIdentity(null);
     setFile(null);
@@ -224,6 +257,7 @@ export function SocialButtons({
     const flow: Flow = {
       popup,
       provider,
+      role,
       verifier: "",
       controller,
       cleanup() {
@@ -277,7 +311,10 @@ export function SocialButtons({
       // Completion is short-lived even when the user needs to enter missing data.
       timeout = setTimeout(() => cancel(labels.canceled), 110_000);
       try {
-        if (intent !== "register") {
+        if (
+          intent === "link" ||
+          (intent === "login" && provider === "FACEBOOK")
+        ) {
           await finish(flow, {});
           return;
         }
@@ -299,21 +336,18 @@ export function SocialButtons({
           await finish(flow, {});
           return;
         }
-        setIdentity(context);
-        setFields({
-          ...signupFields(registration, locale),
-          fullName: context.fullName || registration.fullName || "",
-          email: context.email ?? registration.email ?? "",
-        });
-        setCompletion(true);
-        setBusy(false);
-        requestAnimationFrame(() =>
-          document.getElementById("oauth-title")?.focus(),
-        );
+        if (intent === "login") {
+          setIdentity(context);
+          setCompletion("role");
+          setBusy(false);
+          requestAnimationFrame(() =>
+            document.getElementById("oauth-role-title")?.focus(),
+          );
+        } else await completeProfile(flow, context, role!);
       } catch (error) {
         if (active.current === flow && !controller.signal.aborted) {
           stop();
-          setFailure(error);
+          setFailure({ error, phase: "context" });
         }
       }
     }
@@ -379,10 +413,40 @@ export function SocialButtons({
       } catch (error) {
         if (!controller.signal.aborted && mounted.current) {
           stop();
-          setFailure(error);
+          setFailure({ error, phase: "start" });
         }
       }
     })();
+  }
+  async function completeProfile(
+    flow: Flow,
+    context: ProviderContext,
+    chosenRole: "PARENT" | "SPECIALIST",
+  ) {
+    if (active.current !== flow || flow.finishing) return;
+    flow.role = chosenRole;
+    if (intent === "login") flow.registrationRole = chosenRole;
+    setSelectedRole(chosenRole);
+    setIdentity(context);
+    if (
+      context.provider === "GOOGLE" &&
+      chosenRole === "PARENT" &&
+      context.fullName.trim() &&
+      context.email
+    ) {
+      await finish(flow, {});
+      return;
+    }
+    setFields({
+      ...signupFields(registration, locale),
+      fullName: context.fullName || registration.fullName || "",
+      email: context.email ?? registration.email ?? "",
+    });
+    setCompletion("profile");
+    setBusy(false);
+    requestAnimationFrame(() =>
+      document.getElementById("oauth-title")?.focus(),
+    );
   }
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -428,18 +492,65 @@ export function SocialButtons({
   }
   return (
     <div className="account-social">
-      <ErrorAlert error={failure} />
-      {!!failure && (
-        <p className="field-hint">
-          {c("account.socialConflict")} {c("account.socialRestart")}
-        </p>
+      <SocialError
+        failure={failure}
+        signIn={() => {
+          stop();
+          session.signOut();
+          navigate("/login", { state: { from: "/account/connections" } });
+        }}
+      />
+      {finishFailed && completion !== "none" && (
+        <p className="field-hint">{c("account.socialRestart")}</p>
       )}
       {notice && (
         <p className="alert info-alert" role="status">
           {notice}
         </p>
       )}
-      {completion ? (
+      {completion === "role" ? (
+        <section aria-labelledby="oauth-role-title">
+          <h3 id="oauth-role-title" tabIndex={-1}>
+            {c("account.choose")}
+          </h3>
+          <p>{c("account.chooseHelp")}</p>
+          {identity && (
+            <div className="provider-summary">
+              <p>{identity.fullName}</p>
+              <p dir="ltr">{identity.email}</p>
+            </div>
+          )}
+          <div className="account-options">
+            {(["PARENT", "SPECIALIST"] as const).map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                className="primary-button"
+                disabled={busy || finishFailed}
+                onClick={() => {
+                  if (active.current && identity)
+                    void completeProfile(active.current, identity, choice);
+                }}
+              >
+                {c(
+                  choice === "PARENT" ? "account.parent" : "account.specialist",
+                )}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => {
+              stop();
+              setNotice(labels.canceled);
+            }}
+          >
+            {labels.cancel}
+          </button>
+        </section>
+      ) : completion === "profile" ? (
         <form onSubmit={submit} aria-busy={busy}>
           <h3 id="oauth-title" tabIndex={-1}>
             {labels.complete}
@@ -452,13 +563,18 @@ export function SocialButtons({
                   identity.provider === "GOOGLE" ? "Google" : "Facebook",
                 )}
               </p>
+              {identity.fullName && <p>{identity.fullName}</p>}
               {identity.email && <p dir="ltr">{identity.email}</p>}
+              {identity.provider === "GOOGLE" && identity.emailTrusted && (
+                <p>{c("account.providerVerified")}</p>
+              )}
               {!identity.emailTrusted && <p>{c("account.socialEmailHelp")}</p>}
             </div>
           )}
-          {input("fullName", t("auth.fullName"), true, 100)}
+          {!identity?.fullName &&
+            input("fullName", t("auth.fullName"), true, 100)}
           {!identity?.email && input("email", t("auth.email"), true, 254)}
-          {role === "SPECIALIST" && (
+          {selectedRole === "SPECIALIST" && (
             <>
               {input("specialization", c("account.specialization"), true, 160)}
               {input("qualification", c("account.qualification"), true, 200)}

@@ -1,5 +1,9 @@
 # Authentication and onboarding V3
 
+Subsequent approved Google flow changes are tracked in
+[Google authentication finalization](google-auth-flow-finalization.md). The V3
+delivery report and gallery below describe their original delivery revision.
+
 This extends Authentication V2 and Admin Experience V2 from canonical commit
 `857ba00ee852e2bfa962ff2370081c80eb998ac6`. The local integration branch and remote
 `feature/oauth-provider-activation` matched that commit at the audit. Open PR #9

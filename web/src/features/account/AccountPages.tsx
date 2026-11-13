@@ -14,6 +14,7 @@ import { ApiError } from "../../shared/api";
 import "./account.css";
 export { AdminApplicationsPage } from "../admin/AdminApplicationsPage";
 import { useAccountCopy } from "./account.messages";
+import { SocialButtons } from "./SocialButtons";
 import {
   accountApi,
   applicationDetails,
@@ -51,6 +52,52 @@ export function AccountTypePage() {
       </div>
       <p className="switch-copy">
         <Link to="/login">{t("auth.signInLink")}</Link>
+      </p>
+    </Card>
+  );
+}
+
+export function AccountConnectionsPage() {
+  const session = useSession();
+  const { t } = useI18n();
+  const c = useAccountCopy();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const connected =
+    location.state?.linkedProvider === "GOOGLE" ||
+    location.state?.linkedProvider === "FACEBOOK";
+  return (
+    <Card title={t("account.connections")}>
+      <p className="form-intro">{t("account.connectionsHelp")}</p>
+      {session.status === "unavailable" && (
+        <>
+          <ErrorAlert error={session.failure} />
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => void session.retry()}
+          >
+            {t("session.retry")}
+          </button>
+        </>
+      )}
+      {connected && (
+        <p className="alert success-alert" role="status">
+          {c("account.linkedProvider")}
+        </p>
+      )}
+      <SocialButtons
+        intent="link"
+        disabled={
+          session.status === "checking" || session.status === "unavailable"
+        }
+        onStageChange={(active) => {
+          if (active && connected)
+            navigate("/account/connections", { replace: true, state: null });
+        }}
+      />
+      <p className="switch-copy">
+        <Link to="/home">{t("title.home")}</Link>
       </p>
     </Card>
   );

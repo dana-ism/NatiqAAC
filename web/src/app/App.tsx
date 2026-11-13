@@ -19,8 +19,8 @@ import {
   VerificationPendingPage,
   VerificationResultPage,
   ApplicationStatusPage,
+  AccountConnectionsPage,
 } from "../features/account/AccountPages";
-import { SocialButtons } from "../features/account/SocialButtons";
 
 function ProtectedHome({ admin = false }: { admin?: boolean }) {
   const { t } = useI18n();
@@ -165,15 +165,14 @@ function AppContent() {
         <Route
           path="/account/connections"
           element={
-            session.status === "authenticated" ||
-            session.status === "onboarding" ? (
-              <section className="auth-card">
-                <h2>{t("account.connections")}</h2>
-                <p>{t("account.connectionsHelp")}</p>
-                <SocialButtons intent="link" />
-              </section>
+            session.status !== "anonymous" ? (
+              <AccountConnectionsPage />
             ) : (
-              <Navigate to="/login" replace />
+              <Navigate
+                to="/login"
+                replace
+                state={{ from: "/account/connections" }}
+              />
             )
           }
         />

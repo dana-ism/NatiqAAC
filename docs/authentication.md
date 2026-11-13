@@ -2,6 +2,8 @@
 
 For the latest registration, verification and specialist eligibility changes, see
 [Authentication and onboarding V3](auth-onboarding-v3.md).
+The approved Google Login role selection and signup finalization are documented
+in [Google authentication finalization](google-auth-flow-finalization.md).
 
 ## Scope and implementation status
 

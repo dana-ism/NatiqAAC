@@ -210,4 +210,22 @@ describe('OAuthController', () => {
     );
     expect(valid.qualification).toBe('Degree');
   });
+  it('accepts only public registrationRole values in the finish contract', async () => {
+    const proof = { completionId: 'c'.repeat(43), verifier: 'v'.repeat(43) };
+    for (const registrationRole of ['PARENT', 'SPECIALIST']) {
+      const valid = await pipe.transform(
+        { ...proof, registrationRole },
+        { type: 'body', metatype: OAuthFinishDto },
+      );
+      expect(valid.registrationRole).toBe(registrationRole);
+    }
+    for (const registrationRole of ['ADMIN', '', 'parent', 1, ['PARENT']]) {
+      await expect(
+        pipe.transform(
+          { ...proof, registrationRole },
+          { type: 'body', metatype: OAuthFinishDto },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    }
+  });
 });

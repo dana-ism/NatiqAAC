@@ -5,6 +5,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly kind: "http" | "network" | "contract" | "config" = "http",
     public readonly retryAfterSeconds?: number,
+    public readonly code?: string,
   ) {
     super(kind === "http" ? `HTTP ${status}` : kind);
     this.name = "ApiError";
@@ -100,6 +101,11 @@ export async function request<T>(
       response.status,
       "http",
       retrySeconds(response.headers.get("Retry-After"), body),
+      record(body) &&
+        typeof body.code === "string" &&
+        /^[A-Z_]{1,64}$/.test(body.code)
+        ? body.code
+        : undefined,
     );
   if (response.status !== expectedStatus || !validate(body))
     throw new ApiError(response.status, "contract");
