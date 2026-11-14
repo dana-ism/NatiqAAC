@@ -1,3 +1,4 @@
+import { savedAdminProfile } from "./profile.fixture";
 import { expect, test, type Page } from "@playwright/test";
 import type { AdminDashboard } from "../src/features/admin/admin.api";
 export async function workspace(
@@ -84,8 +85,7 @@ export async function workspace(
         email: "admin@example.com",
         role: "ADMIN",
       };
-    else if (path === "/admin/overview")
-      body = { account: { email: "admin@example.com", role: "ADMIN" } };
+    else if (path === "/admin/profile") body = savedAdminProfile;
     else if (path.endsWith("/dashboard")) {
       state.dashboardCalls++;
       status = state.dashboardFails ? 503 : 200;

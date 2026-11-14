@@ -1,3 +1,4 @@
+import { savedAdminProfile } from "./profile.fixture";
 import { expect, test } from "@playwright/test";
 import axe from "axe-core";
 import { ar } from "../src/i18n/ar";
@@ -38,12 +39,16 @@ for (const width of [375, 768, 1024, 1440]) {
           body = { message: "ok", access_token: token, user };
         else if (path === "/auth/me")
           body = { userId: user.id, email: user.email, role: user.role };
-        else if (path === "/admin/overview") {
+        else if (path === "/admin/profile") {
           overviewCalls++;
           expect(route.request().headers().authorization).toBe(
             `Bearer ${token}`,
           );
-          body = { account: { email: user.email, role: user.role } };
+          body = {
+            ...savedAdminProfile,
+            fullName: user.fullName,
+            email: user.email,
+          };
         } else if (path === "/admin/specialist-applications/dashboard") {
           body = {
             pendingCount: 0,
@@ -73,7 +78,9 @@ for (const width of [375, 768, 1024, 1440]) {
         .getByRole("button", { name: copy["auth.login"], exact: true })
         .click();
       await expect(page).toHaveURL(/\/admin$/);
-      await expect(page.getByText(copy["admin.accountTitle"])).toBeVisible();
+      await expect(
+        page.getByText("Synthetic Admin", { exact: true }),
+      ).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute(
         "dir",
         locale === "ar" ? "rtl" : "ltr",
@@ -147,7 +154,12 @@ for (const width of [375, 768, 1024, 1440]) {
       expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
       const switched = locale === "ar" ? en : ar;
       await page
-        .getByRole("button", { name: switched["home.signOut"] })
+        .getByRole("button", {
+          name: switched["profile.menu"] + ": Synthetic Admin",
+        })
+        .click();
+      await page
+        .getByRole("menuitem", { name: switched["profile.logout"] })
         .click();
       await expect(page).toHaveURL(/\/login$/);
       await page.goto("/admin");

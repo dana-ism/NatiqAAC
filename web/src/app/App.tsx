@@ -8,6 +8,8 @@ import { ErrorAlert, Loading } from "../shared/Feedback";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/context";
 import { AdminPage } from "../features/admin/AdminPage";
+import { AdminProfilePage } from "../features/admin/AdminProfilePage";
+import { AdminAccountSettingsPage } from "../features/admin/AdminAccountSettingsPage";
 import { AdminLayout } from "../features/admin/AdminLayout";
 import { AdminApplicationsPage } from "../features/admin/AdminApplicationsPage";
 import { ComingSoonPage } from "../features/admin/ComingSoonPage";
@@ -82,26 +84,36 @@ function AppContent() {
     );
     const title =
       futureSection?.title ??
-      (page === "/admin/specialist-applications"
-        ? "account.applications"
-        : page === "/admin"
-          ? "admin.title"
-          : page.startsWith("/register")
-            ? "auth.register"
-            : page === "/home"
-              ? "title.home"
-              : page === "/account/connections"
-                ? "account.connections"
-                : page === "/application-status"
-                  ? "account.status"
-                  : page === "/verify-email" || page === "/verification-pending"
-                    ? "account.pending"
-                    : "auth.login");
+      (page === "/admin/profile"
+        ? "profile.myProfile"
+        : page === "/admin/account-settings"
+          ? "profile.settings"
+          : page === "/admin/specialist-applications"
+            ? "account.applications"
+            : page === "/admin"
+              ? "admin.title"
+              : page.startsWith("/register")
+                ? "auth.register"
+                : page === "/home"
+                  ? "title.home"
+                  : page === "/account/connections"
+                    ? "account.connections"
+                    : page === "/application-status"
+                      ? "account.status"
+                      : page === "/verify-email" ||
+                          page === "/verification-pending"
+                        ? "account.pending"
+                        : "auth.login");
     document.title = `${t(title)} | ${t("brand.name")}`;
   }, [location.pathname, t]);
   useEffect(() => {
-    document.getElementById("main")?.focus();
-  }, [location.pathname]);
+    const target =
+      location.pathname === "/admin/account-settings" &&
+      ["#security", "#preferences"].includes(location.hash)
+        ? location.hash.slice(1)
+        : "main";
+    document.getElementById(target)?.focus();
+  }, [location.pathname, location.hash]);
   if (
     location.pathname.startsWith("/admin") &&
     session.status === "authenticated" &&
@@ -111,6 +123,11 @@ function AppContent() {
       <Routes>
         <Route element={<AdminLayout />}>
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/profile" element={<AdminProfilePage />} />
+          <Route
+            path="/admin/account-settings"
+            element={<AdminAccountSettingsPage />}
+          />
           {futureAdminSections.map((section) => (
             <Route
               key={section.path}
@@ -178,6 +195,11 @@ function AppContent() {
         />
         <Route
           path="/admin/specialist-applications"
+          element={<ProtectedHome admin />}
+        />
+        <Route path="/admin/profile" element={<ProtectedHome admin />} />
+        <Route
+          path="/admin/account-settings"
           element={<ProtectedHome admin />}
         />
         {futureAdminSections.map((section) => (

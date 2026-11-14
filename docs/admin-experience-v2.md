@@ -1,5 +1,11 @@
 # Admin experience V2
 
+The subsequent [Admin profile and personal account settings](admin-profile-account-settings.md)
+change replaces the role/email header with saved-name identity and an account menu.
+Its approved private-photo implementation is tested in isolation; live migration
+and bucket setup still require separate owner authorization.
+The gallery and delivery report for V2 retain their historical revision.
+
 V3 eligibility update: all application reads, counts, details and PDFs now require
 actual verified owner email. Legacy access exemptions are preserved for login,
 not treated as mailbox evidence for review. See [V3](auth-onboarding-v3.md).
@@ -12,15 +18,15 @@ there is no dependency, schema, migration, authentication or session-policy chan
 
 ## Navigation and responsibilities
 
-| Route | Behavior |
-| --- | --- |
-| `/admin` | Greeting, global metrics, important alerts, newest submitted requests |
-| `/admin/specialist-applications` | Existing bounded list, filters, details and decisions |
-| `/admin/users` | User management Coming Soon |
-| `/admin/content` | Content studio Coming Soon |
-| `/admin/admins` | Admin management Coming Soon |
-| `/admin/settings` | Working local language setting; other settings Coming Soon |
-| `/admin/audit-logs` | Audit logs Coming Soon |
+| Route                            | Behavior                                                              |
+| -------------------------------- | --------------------------------------------------------------------- |
+| `/admin`                         | Greeting, global metrics, important alerts, newest submitted requests |
+| `/admin/specialist-applications` | Existing bounded list, filters, details and decisions                 |
+| `/admin/users`                   | User management Coming Soon                                           |
+| `/admin/content`                 | Content studio Coming Soon                                            |
+| `/admin/admins`                  | Admin management Coming Soon                                          |
+| `/admin/settings`                | Working local language setting; other settings Coming Soon            |
+| `/admin/audit-logs`              | Audit logs Coming Soon                                                |
 
 `admin-sections.ts` supplies routes, sidebar, breadcrumb and future copy.
 `ComingSoonPage` renders a distinct title/description and a real Back to overview

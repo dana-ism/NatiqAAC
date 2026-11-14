@@ -1,7 +1,9 @@
 import type { Messages } from "./ar";
 import { accountEn } from "../features/account/account.messages";
+import { profileEn } from "../features/admin/profile.messages";
 
 export const en = {
+  ...profileEn,
   "adminV2.settings": "Settings",
   "adminV2.settingsHelp":
     "Choose your display language now. Other administration settings are in development.",

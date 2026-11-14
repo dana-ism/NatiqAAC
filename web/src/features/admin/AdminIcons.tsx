@@ -1,5 +1,12 @@
 import type { SVGProps } from "react";
 const paths = {
+  camera: (
+    <>
+      <path d="M8 7l2-4h4l2 4" />
+      <rect x="3" y="7" width="18" height="14" rx="3" />
+      <circle cx="12" cy="14" r="3" />
+    </>
+  ),
   settings: (
     <>
       <path d="M4 7h2m6 0h8M4 17h8m6 0h2" />

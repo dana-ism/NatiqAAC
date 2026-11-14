@@ -1,5 +1,7 @@
 import { accountAr } from "../features/account/account.messages";
+import { profileAr } from "../features/admin/profile.messages";
 export const ar = {
+  ...profileAr,
   "adminV2.settings": "الإعدادات",
   "adminV2.settingsHelp":
     "اضبط لغة العرض الآن. إعدادات مساحة الإدارة الأخرى قيد التطوير.",
