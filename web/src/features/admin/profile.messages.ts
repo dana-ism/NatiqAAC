@@ -1,4 +1,23 @@
 export const profileEn = {
+  "photo.title": "Profile Photo",
+  "photo.choose": "Add Photo",
+  "photo.replace": "Replace Photo",
+  "photo.remove": "Remove Photo",
+  "photo.confirmRemove": "Confirm removal",
+  "photo.removeHelp": "Remove your saved photo and use the default avatar?",
+  "photo.confirm": "Save Photo",
+  "photo.help":
+    "Optional. JPEG, PNG or WebP, up to 2 MiB and 4096 pixels per side. Images are processed before private storage.",
+  "photo.preview": "Selected profile photo preview",
+  "photo.saved": "Your profile photo was saved.",
+  "photo.removed": "Your profile photo was removed.",
+  "photo.invalid":
+    "Choose a valid JPEG, PNG or WebP image of at most 2 MiB and 4096 pixels per side.",
+  "photo.saving": "Saving photo…",
+  "photo.loading": "Loading your saved photo…",
+  "photo.loadFailed":
+    "Your photo could not be loaded. The default avatar is shown.",
+  "photo.retry": "Reload Photo",
   "profile.myProfile": "My Profile",
   "profile.settings": "Account Settings",
   "profile.security": "Security & Sign-in",
@@ -52,6 +71,25 @@ export const profileEn = {
 } as const;
 
 export const profileAr: Record<keyof typeof profileEn, string> = {
+  "photo.title": "الصورة الشخصية",
+  "photo.choose": "إضافة صورة",
+  "photo.replace": "استبدال الصورة",
+  "photo.remove": "إزالة الصورة",
+  "photo.confirmRemove": "تأكيد الإزالة",
+  "photo.removeHelp":
+    "هل تريد إزالة صورتك المحفوظة واستخدام الصورة الافتراضية؟",
+  "photo.confirm": "حفظ الصورة",
+  "photo.help":
+    "اختيارية. JPEG أو PNG أو WebP، حتى 2 ميبيبايت و4096 بكسل لكل ضلع. تُعالج الصورة قبل تخزينها الخاص.",
+  "photo.preview": "معاينة الصورة الشخصية المختارة",
+  "photo.saved": "حُفظت صورتك الشخصية بنجاح.",
+  "photo.removed": "أُزيلت صورتك الشخصية بنجاح.",
+  "photo.invalid":
+    "اختر صورة JPEG أو PNG أو WebP صالحة حتى 2 ميبيبايت و4096 بكسل لكل ضلع.",
+  "photo.saving": "جارٍ حفظ الصورة…",
+  "photo.loading": "جارٍ تحميل صورتك المحفوظة…",
+  "photo.loadFailed": "تعذّر تحميل صورتك. تظهر الصورة الافتراضية بدلًا منها.",
+  "photo.retry": "إعادة تحميل الصورة",
   "profile.myProfile": "الملف الشخصي",
   "profile.settings": "إعدادات الحساب",
   "profile.security": "الأمان وتسجيل الدخول",

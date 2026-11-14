@@ -36,6 +36,35 @@ export function AdminLayout() {
   const { t } = useI18n(),
     location = useLocation();
   const [account, setAccount] = useState<AdminProfile | null>(null);
+  const imageRequest = useRef(session.downloadImage);
+  const [avatarAttempt, setAvatarAttempt] = useState(0);
+  const [avatar, setAvatar] = useState<{
+    version: string;
+    url: string | null;
+    error: unknown;
+  } | null>(null);
+  const avatarVersion = account?.hasAvatar
+    ? `${account.updatedAt}:${avatarAttempt}`
+    : null;
+  useEffect(() => {
+    if (!avatarVersion) return;
+    let cancelled = false;
+    let url: string | undefined;
+    void imageRequest
+      .current("/admin/profile/avatar")
+      .then((blob) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setAvatar({ version: avatarVersion, url, error: null });
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setAvatar({ version: avatarVersion, url: null, error });
+      });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [avatarVersion]);
   const [failure, setFailure] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0),
     [navigation, setNavigation] = useState(false);
@@ -85,6 +114,17 @@ export function AdminLayout() {
         account
           ? {
               profile: account,
+              avatarUrl:
+                avatarVersion && avatar?.version === avatarVersion
+                  ? avatar.url
+                  : null,
+              avatarLoading:
+                !!avatarVersion && avatar?.version !== avatarVersion,
+              avatarFailure:
+                avatarVersion && avatar?.version === avatarVersion
+                  ? avatar.error
+                  : null,
+              retryAvatar: () => setAvatarAttempt((n) => n + 1),
               updateProfile: setAccount,
               reload: () => {
                 setFailure(null);

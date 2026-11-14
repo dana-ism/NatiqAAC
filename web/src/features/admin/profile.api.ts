@@ -21,6 +21,7 @@ export function validDisplayName(name: string) {
 }
 export type AdminProfile = {
   fullName: string;
+  hasAvatar: boolean;
   email: string;
   role: "ADMIN";
   status: "ACTIVE";
@@ -34,6 +35,7 @@ export function adminProfileResult(v: unknown): v is AdminProfile {
   return (
     record(v) &&
     typeof v.fullName === "string" &&
+    typeof v.hasAvatar === "boolean" &&
     typeof v.email === "string" &&
     v.role === "ADMIN" &&
     v.status === "ACTIVE" &&

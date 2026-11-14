@@ -7,6 +7,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
 import { AdminProfileController } from '../src/admin/admin-profile.controller';
 import { AdminProfileService } from '../src/admin/admin-profile.service';
+import { AvatarStorageService } from '../src/admin/avatar-storage.service';
 import { JwtStrategy } from '../src/auth/strategies/jwt.strategy';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/auth/guards/roles.guard';
@@ -22,6 +23,7 @@ describe('Own Admin profile HTTP contract (synthetic persistence)', () => {
   const fresh = () => ({
     id,
     fullName: 'Synthetic Admin',
+    avatarKey: null as string | null,
     email: 'synthetic@example.com',
     role: 'ADMIN',
     status: 'ACTIVE',
@@ -61,6 +63,14 @@ describe('Own Admin profile HTTP contract (synthetic persistence)', () => {
       controllers: [AdminProfileController],
       providers: [
         AdminProfileService,
+        {
+          provide: AvatarStorageService,
+          useValue: {
+            upload: jest.fn(),
+            download: jest.fn(),
+            cleanup: jest.fn(),
+          },
+        },
         JwtStrategy,
         JwtAuthGuard,
         RolesGuard,
@@ -94,6 +104,7 @@ describe('Own Admin profile HTTP contract (synthetic persistence)', () => {
     const result = await read().expect(200).expect('Cache-Control', 'no-store');
     expect(result.body).toEqual({
       fullName: user.fullName,
+      hasAvatar: false,
       email: user.email,
       role: 'ADMIN',
       status: 'ACTIVE',
@@ -108,6 +119,13 @@ describe('Own Admin profile HTTP contract (synthetic persistence)', () => {
     );
   });
   it('rejects anonymous requests', async () => {
+    await request(app.getHttpServer()).get('/admin/profile/avatar').expect(401);
+    await request(app.getHttpServer())
+      .post('/admin/profile/avatar')
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/admin/profile/avatar/remove')
+      .expect(401);
     await request(app.getHttpServer()).get('/admin/profile').expect(401);
     await request(app.getHttpServer())
       .post('/admin/profile/name')
@@ -120,6 +138,18 @@ describe('Own Admin profile HTTP contract (synthetic persistence)', () => {
       user.role = role;
       // A legacy exemption allows testing the ordinary role boundary for either role.
       user.legacyAuthExempt = true;
+      await request(app.getHttpServer())
+        .get('/admin/profile/avatar')
+        .auth(token(), { type: 'bearer' })
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/admin/profile/avatar')
+        .auth(token(), { type: 'bearer' })
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/admin/profile/avatar/remove')
+        .auth(token(), { type: 'bearer' })
+        .expect(403);
       await read().expect(403);
       await rename({
         fullName: 'Changed',
@@ -130,6 +160,18 @@ describe('Own Admin profile HTTP contract (synthetic persistence)', () => {
   );
   it.each(['SUSPENDED', 'PENDING'])('denies %s Admins', async (status) => {
     user.status = status;
+    await request(app.getHttpServer())
+      .get('/admin/profile/avatar')
+      .auth(token(), { type: 'bearer' })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/admin/profile/avatar')
+      .auth(token(), { type: 'bearer' })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/admin/profile/avatar/remove')
+      .auth(token(), { type: 'bearer' })
+      .expect(401);
     await read().expect(401);
     await rename({
       fullName: 'Changed',

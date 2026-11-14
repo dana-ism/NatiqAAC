@@ -4,6 +4,10 @@ export type ProfileContext = {
   profile: AdminProfile;
   updateProfile: (profile: AdminProfile) => void;
   reload: () => void;
+  avatarUrl: string | null;
+  avatarLoading: boolean;
+  avatarFailure: unknown;
+  retryAvatar: () => void;
 };
 export const AdminProfileContext = createContext<ProfileContext | null>(null);
 export function useAdminProfile() {

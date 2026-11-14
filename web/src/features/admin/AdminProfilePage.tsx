@@ -5,6 +5,7 @@ import { ApiError } from "../../shared/api";
 import { ErrorAlert } from "../../shared/Feedback";
 import { useSession } from "../auth/session-context";
 import { AccountAvatar } from "./AdminAccountMenu";
+import { AdminPhotoEditor } from "./AdminPhotoEditor";
 import { useAdminProfile } from "./profile-context";
 import {
   adminProfileResult,
@@ -135,6 +136,7 @@ export function AdminProfilePage() {
             </bdi>
           </h2>
           <span className="admin-account-role">{t("role.ADMIN")}</span>
+          <AdminPhotoEditor />
           <p>{t("profile.personalOnly")}</p>
           <Link className="admin-button secondary" to="/admin/account-settings">
             {t("profile.settings")}

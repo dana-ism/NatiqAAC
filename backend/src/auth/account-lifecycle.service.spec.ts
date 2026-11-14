@@ -13,6 +13,7 @@ import {
 } from './account-lifecycle.service';
 
 const ACCOUNT: User = {
+  avatarKey: null,
   id: 'a93039d6-fac7-4a14-a77b-895ed204564d',
   fullName: 'Synthetic Parent',
   email: 'parent@institution.ps',

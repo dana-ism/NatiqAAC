@@ -1,6 +1,7 @@
 import type { AdminProfile } from "../src/features/admin/profile.api";
 export const savedAdminProfile: AdminProfile = {
   fullName: "Synthetic Admin",
+  hasAvatar: false,
   email: "admin@example.com",
   role: "ADMIN",
   status: "ACTIVE",

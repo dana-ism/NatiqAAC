@@ -19,6 +19,12 @@ export type Session = {
   ) => Promise<T>;
   uploadDocument: (form: FormData) => Promise<{ message: string }>;
   downloadDocument: (path: string) => Promise<Blob>;
+  authenticatedUpload: <T>(
+    path: string,
+    form: FormData,
+    validate: (body: unknown) => body is T,
+  ) => Promise<T>;
+  downloadImage: (path: string) => Promise<Blob>;
   authenticatedGet: <T>(
     path: string,
     validate: (body: unknown) => body is T,

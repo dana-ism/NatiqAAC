@@ -1,6 +1,7 @@
 import { expect, test, chromium, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import axe from "axe-core";
 import { ar } from "../src/i18n/ar";
 import { en } from "../src/i18n/en";
@@ -8,13 +9,26 @@ import { savedAdminProfile } from "./profile.fixture";
 
 test.setTimeout(60000);
 const output = "../docs/assets/admin-profile";
+const raster = createRequire(
+  new URL("../../backend/package.json", import.meta.url),
+)("sharp");
 async function fixture(page: Page, locale: "ar" | "en") {
+  const image = (await raster({
+    create: { width: 24, height: 24, channels: 3, background: "#194b49" },
+  })
+    .webp()
+    .toBuffer()) as Buffer;
   let unblockSave: () => void = () => undefined;
   const state = {
     profile: structuredClone(savedAdminProfile),
     conflict: false,
     failure: false,
     saves: 0,
+    uploads: 0,
+    removals: 0,
+    imageFailure: false,
+    photoFailure: false,
+    photoConflict: false,
     holdSave: false,
     releaseSave: () => unblockSave(),
   };
@@ -55,6 +69,40 @@ async function fixture(page: Page, locale: "ar" | "en") {
     else if (path === "/admin/profile") {
       status = state.failure ? 503 : 200;
       body = state.profile;
+    } else if (path === "/admin/profile/avatar" && req.method() === "GET") {
+      expect(req.headers().authorization).toMatch(/^Bearer /);
+      if (!state.profile.hasAvatar || state.imageFailure)
+        return route.fulfill({
+          status: state.imageFailure ? 503 : 404,
+          headers,
+          contentType: "application/json",
+          body: "{}",
+        });
+      return route.fulfill({
+        headers: { ...headers, "cache-control": "private, no-store" },
+        contentType: "image/webp",
+        body: image,
+      });
+    } else if (
+      path === "/admin/profile/avatar" ||
+      path === "/admin/profile/avatar/remove"
+    ) {
+      expect(req.headers().authorization).toMatch(/^Bearer /);
+      const removing = path.endsWith("/remove");
+      if (removing) state.removals++;
+      else state.uploads++;
+      const posted = req.postData() ?? "";
+      expect(posted).toContain(state.profile.updatedAt);
+      status = state.photoFailure ? 503 : state.photoConflict ? 409 : 200;
+      if (status === 200)
+        state.profile = {
+          ...state.profile,
+          hasAvatar: !removing,
+          updatedAt: new Date(
+            Date.parse(state.profile.updatedAt) + 1,
+          ).toISOString(),
+        };
+      body = status === 200 ? state.profile : {};
     } else if (path === "/admin/profile/name") {
       state.saves++;
       const data = req.postDataJSON();
@@ -140,6 +188,171 @@ async function capture(page: Page, name: string) {
 }
 for (const locale of ["ar", "en"] as const) {
   const c = locale === "ar" ? ar : en;
+  for (const width of [375, 1440]) {
+    test(`Admin photo ${locale} ${width}: preview, private retrieval, replace, cancel and remove (synthetic transport)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      const state = await fixture(page, locale);
+      await page.goto("/login");
+      await login(page, c);
+      await page.locator(".admin-account-trigger").click();
+      await page
+        .getByRole("menuitem", { name: c["profile.myProfile"] })
+        .click();
+      const png = (await raster({
+        create: { width: 24, height: 24, channels: 3, background: "#194b49" },
+      })
+        .png()
+        .toBuffer()) as Buffer;
+      const chooserReady = page.waitForEvent("filechooser");
+      await page
+        .getByRole("button", { name: c["photo.choose"], exact: true })
+        .click();
+      const chooser = await chooserReady;
+      await chooser.setFiles({
+        name: "synthetic.png",
+        mimeType: "image/png",
+        buffer: png,
+      });
+      await expect(page.getByAltText(c["photo.preview"])).toBeVisible();
+      expect(state.uploads).toBe(0);
+      await audit(page);
+      await capture(page, `${locale}-${width}-photo-preview`);
+      await page
+        .getByRole("button", { name: c["photo.confirm"], exact: true })
+        .click();
+      await expect(
+        page.getByText(c["photo.saved"], { exact: true }),
+      ).toBeVisible();
+      await expect(page.locator(".account-avatar img")).toHaveCount(2);
+      await page.locator(".admin-account-trigger").click();
+      await expect(page.locator(".account-avatar img")).toHaveCount(3);
+      expect(
+        await page
+          .locator(".account-avatar img")
+          .evaluateAll((images) =>
+            images.every((img) => (img as HTMLImageElement).naturalWidth > 0),
+          ),
+      ).toBe(true);
+      await page.keyboard.press("Escape");
+      await audit(page);
+      await capture(page, `${locale}-${width}-photo-saved`);
+      await page.reload();
+      await login(page, c);
+      await page.locator(".admin-account-trigger").click();
+      await page
+        .getByRole("menuitem", { name: c["profile.myProfile"] })
+        .click();
+      await expect(page.locator(".account-avatar img")).toHaveCount(2);
+      const old = await page
+        .locator(".account-avatar img")
+        .first()
+        .getAttribute("src");
+      await page.getByLabel(c["photo.replace"], { exact: true }).setInputFiles({
+        name: "replacement.png",
+        mimeType: "image/png",
+        buffer: png,
+      });
+      await page
+        .getByRole("button", { name: c["account.cancel"], exact: true })
+        .click();
+      expect(state.uploads).toBe(1);
+      await page.getByLabel(c["photo.replace"], { exact: true }).setInputFiles({
+        name: "replacement.png",
+        mimeType: "image/png",
+        buffer: png,
+      });
+      await page
+        .getByRole("button", { name: c["photo.confirm"], exact: true })
+        .click();
+      await expect.poll(() => state.uploads).toBe(2);
+      await expect(
+        page.locator(".account-avatar img").first(),
+      ).not.toHaveAttribute("src", old!);
+      expect(
+        await page.evaluate(async (url) => {
+          try {
+            await fetch(url!);
+            return false;
+          } catch {
+            return true;
+          }
+        }, old),
+      ).toBe(true);
+      await page
+        .getByRole("button", { name: c["photo.remove"], exact: true })
+        .click();
+      await audit(page);
+      await capture(page, `${locale}-${width}-photo-removal`);
+      await page
+        .getByRole("button", { name: c["photo.confirmRemove"], exact: true })
+        .click();
+      await expect(
+        page.getByText(c["photo.removed"], { exact: true }),
+      ).toBeVisible();
+      await expect(page.locator(".account-avatar img")).toHaveCount(0);
+      expect(state.removals).toBe(1);
+    });
+  }
+  test(`Admin photo ${locale}: invalid input, server conflict and retrieval retry are honest`, async ({
+    page,
+  }) => {
+    const state = await fixture(page, locale);
+    await page.goto("/login");
+    await login(page, c);
+    await page.locator(".admin-account-trigger").click();
+    await page.getByRole("menuitem", { name: c["profile.myProfile"] }).click();
+    await page.getByLabel(c["photo.choose"], { exact: true }).setInputFiles({
+      name: "spoof.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("<svg/>"),
+    });
+    await expect(
+      page.getByText(c["photo.invalid"], { exact: true }),
+    ).toBeVisible();
+    expect(state.uploads).toBe(0);
+    const png = (await raster({
+      create: { width: 24, height: 24, channels: 3, background: "white" },
+    })
+      .png()
+      .toBuffer()) as Buffer;
+    await page.getByLabel(c["photo.choose"], { exact: true }).setInputFiles({
+      name: "synthetic.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    state.photoConflict = true;
+    await page
+      .getByRole("button", { name: c["photo.confirm"], exact: true })
+      .click();
+    await expect(
+      page.getByText(c["profile.conflict"], { exact: true }),
+    ).toBeVisible();
+    expect(state.profile.hasAvatar).toBe(false);
+    await page
+      .getByRole("button", { name: c["account.cancel"], exact: true })
+      .click();
+    state.photoConflict = false;
+    state.imageFailure = true;
+    await page.getByLabel(c["photo.choose"], { exact: true }).setInputFiles({
+      name: "synthetic.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    await page
+      .getByRole("button", { name: c["photo.confirm"], exact: true })
+      .click();
+    await expect(
+      page.getByText(c["photo.loadFailed"], { exact: false }),
+    ).toBeVisible();
+    await expect(page.locator(".account-avatar img")).toHaveCount(0);
+    state.imageFailure = false;
+    await page
+      .getByRole("button", { name: c["photo.retry"], exact: true })
+      .click();
+    await expect(page.locator(".account-avatar img")).toHaveCount(2);
+  });
   test(`Admin profile ${locale}: native browser zoom at 200 percent`, async ({
     browserName,
   }, info) => {

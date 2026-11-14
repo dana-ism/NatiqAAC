@@ -13,6 +13,8 @@ export function AccountAvatar({
   name: string;
   large?: boolean;
 }) {
+  const { avatarUrl } = useAdminProfile();
+  const [failed, setFailed] = useState<string | null>(null);
   const initials = name
     .trim()
     .split(/\s+/u)
@@ -24,7 +26,11 @@ export function AccountAvatar({
       className={`account-avatar${large ? " account-avatar-large" : ""}`}
       aria-hidden="true"
     >
-      {initials || <AdminIcon name="users" />}
+      {avatarUrl && avatarUrl !== failed ? (
+        <img src={avatarUrl} alt="" onError={() => setFailed(avatarUrl)} />
+      ) : (
+        initials || <AdminIcon name="users" />
+      )}
     </span>
   );
 }

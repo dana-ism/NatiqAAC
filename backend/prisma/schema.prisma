@@ -10,6 +10,7 @@ datasource db {
 model User {
   id                    String                 @id @default(uuid()) @db.Uuid
   fullName              String                 @map("full_name")
+  avatarKey             String?                @map("avatar_key")
   email                 String                 @unique
   passwordHash          String?                @map("password_hash")
   role                  UserRole               @default(PARENT)

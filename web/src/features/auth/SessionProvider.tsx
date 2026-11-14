@@ -254,6 +254,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (blob.size > 5 * 1024 * 1024) throw new ApiError(200, "contract");
           return blob;
         },
+        authenticatedUpload: async (path, form, validate) => {
+          const run = generation.current;
+          const response = await documentRequest(path, form);
+          const body: unknown = await response.json();
+          if (run !== generation.current) throw new ApiError(401);
+          if (!validate(body)) throw new ApiError(200, "contract");
+          return body;
+        },
+        downloadImage: async (path) => {
+          const run = generation.current;
+          const response = await documentRequest(path);
+          if (
+            response.headers.get("Content-Type")?.split(";")[0].trim() !==
+            "image/webp"
+          )
+            throw new ApiError(200, "contract");
+          const blob = await response.blob();
+          if (run !== generation.current) throw new ApiError(401);
+          if (!blob.size || blob.size > 2 * 1024 * 1024)
+            throw new ApiError(200, "contract");
+          return blob;
+        },
       }}
     >
       {children}

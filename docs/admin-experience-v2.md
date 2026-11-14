@@ -2,7 +2,8 @@
 
 The subsequent [Admin profile and personal account settings](admin-profile-account-settings.md)
 change replaces the role/email header with saved-name identity and an account menu.
-Its photo-storage proposal remains subject to the documented owner checkpoint.
+Its approved private-photo implementation is tested in isolation; live migration
+and bucket setup still require separate owner authorization.
 The gallery and delivery report for V2 retain their historical revision.
 
 V3 eligibility update: all application reads, counts, details and PDFs now require

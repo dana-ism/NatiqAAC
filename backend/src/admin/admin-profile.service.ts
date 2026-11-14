@@ -2,11 +2,14 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AvatarStorageService } from './avatar-storage.service';
 
 const profileSelection = {
   fullName: true,
+  avatarKey: true,
   email: true,
   role: true,
   status: true,
@@ -19,7 +22,10 @@ const profileSelection = {
 
 @Injectable()
 export class AdminProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly avatars: AvatarStorageService,
+  ) {}
 
   async get(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -30,6 +36,7 @@ export class AdminProfileService {
       throw new UnauthorizedException('Account is not active');
     return {
       fullName: user.fullName,
+      hasAvatar: !!user.avatarKey,
       email: user.email,
       role: user.role,
       status: user.status,
@@ -66,6 +73,62 @@ export class AdminProfileService {
         message: 'Profile changed. Reload before saving again',
       });
     }
+    return this.get(userId);
+  }
+  private async owner(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, status: true, avatarKey: true, updatedAt: true },
+    });
+    if (!user || user.role !== 'ADMIN' || user.status !== 'ACTIVE')
+      throw new UnauthorizedException('Account is not active');
+    return user;
+  }
+  async image(userId: string) {
+    const user = await this.owner(userId);
+    if (!user.avatarKey) throw new NotFoundException('No profile photo');
+    return this.avatars.download(user.avatarKey, userId);
+  }
+  async changeAvatar(
+    userId: string,
+    expectedUpdatedAt: string,
+    file?: { buffer: Buffer; mimetype: string },
+  ) {
+    const owner = await this.owner(userId);
+    if (owner.updatedAt.toISOString() !== expectedUpdatedAt)
+      throw new ConflictException(
+        'Profile changed. Reload before saving again',
+      );
+    const key = file
+      ? await this.avatars.upload(file.buffer, file.mimetype, userId)
+      : null;
+    let committed = false;
+    try {
+      const changed = await this.prisma.user.updateMany({
+        where: {
+          id: userId,
+          role: 'ADMIN',
+          status: 'ACTIVE',
+          updatedAt: new Date(expectedUpdatedAt),
+        },
+        data: {
+          avatarKey: key,
+          updatedAt: new Date(
+            Math.max(Date.now(), owner.updatedAt.getTime() + 1),
+          ),
+        },
+      });
+      if (changed.count !== 1) {
+        await this.owner(userId);
+        throw new ConflictException(
+          'Profile changed. Reload before saving again',
+        );
+      }
+      committed = true;
+    } finally {
+      if (!committed && key) await this.avatars.cleanup(key, userId);
+    }
+    if (owner.avatarKey) await this.avatars.cleanup(owner.avatarKey, userId);
     return this.get(userId);
   }
 }
